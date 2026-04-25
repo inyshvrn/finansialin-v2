@@ -16,9 +16,9 @@ export default function Sidebar() {
   ];
 
   return (
-    <aside className="w-70 bg-white border-r border-fin-border flex flex-col px-6 py-10 sticky top-0 h-screen shadow-sm">
+    <aside className="w-72 bg-white border border-fin-border rounded-[40px] flex flex-col px-6 py-8 sticky top-4 h-[calc(100vh-2rem)] shadow-sm ml-4">
       <div className="flex items-center gap-3 mb-14 px-2">
-        <div className="w-10 h-10 bg-fin-gold rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg">F</div>
+        <div className="w-11 h-11 bg-fin-gold rounded-4xl flex items-center justify-center text-white font-bold text-xl shadow-sm">F</div>
         <span className="font-serif font-bold text-xl tracking-tighter text-fin-black">FINANSIALIN</span>
       </div>
 
@@ -26,8 +26,8 @@ export default function Sidebar() {
         {menu.map((item) => {
           const active = pathname === item.path;
           return (
-            <Link key={item.name} href={item.path} className={`flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all ${
-              active ? "bg-fin-black text-white shadow-xl scale-[1.02]" : "text-fin-taupe hover:bg-fin-bg hover:text-fin-black"
+            <Link key={item.name} href={item.path} className={`flex items-center gap-4 px-4 py-3.5 rounded-4xl transition-all ${
+              active ? "bg-fin-black text-white shadow-sm" : "text-fin-black/70 hover:bg-fin-bg hover:text-fin-black"
             }`}>
               {item.icon}
               <span className="font-semibold">{item.name}</span>
@@ -36,7 +36,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <button className="flex items-center gap-4 px-4 py-3.5 text-red-500 font-semibold hover:bg-red-50 rounded-2xl transition mt-auto">
+      <button className="flex items-center gap-4 px-4 py-3.5 text-fin-black font-semibold hover:bg-fin-bg rounded-4xl transition mt-auto border border-fin-border shadow-sm">
         <LogOut size={22} />
         <span>Logout</span>
       </button>
