@@ -1,52 +1,104 @@
+"use client";
 import React from "react";
 import Image from "next/image";
-import { Camera, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
+import { Icon } from "@iconify/react";
 
 export default function ProfileForm() {
   return (
-    <div className="space-y-8">
-      <div className="inline-flex items-center rounded-full border border-fin-border bg-white p-1 shadow-sm">
-        <button className="min-w-38.5 rounded-full bg-fin-gold px-6 py-3 text-center text-base font-medium text-[#0F0F0D]">
+    <div className="flex flex-col gap-15 animate-in fade-in duration-500">
+      
+      {/* Tab Switcher (Rectangle 11 & 12) */}
+      <div className="flex w-fit items-center rounded-full border border-[#979797] bg-white p-0.5">
+        <button className="h-11.25 w-39.5 rounded-full bg-[#F5CA1C] text-[16px] font-normal text-black shadow-sm transition">
           Edit Profile
         </button>
-        <button className="min-w-38.5 rounded-full px-6 py-3 text-center text-base font-medium text-[#0F0F0D]/80 transition hover:bg-fin-bg">
+        <button className="h-11.25 w-39.5 rounded-full text-[16px] font-normal text-black/60 transition hover:text-black">
           Preferences
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[340px_minmax(0,1fr)] lg:gap-14">
-        <div className="flex justify-center lg:justify-start">
-          <div className="relative h-76 w-76">
-            <div className="h-full w-full overflow-hidden rounded-full bg-[#D9D9D9]">
-              <Image src="/profile-user.jpg" alt="Profile" width={304} height={304} className="h-full w-full object-cover" />
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-15 items-start">
+        
+        {/* Left Side: Photo Section */}
+        <div className="relative flex justify-center">
+          <div className="relative w-76 h-76">
+            {/* Outer Circle Shadow/Border (image_c7394f) */}
+            <div className="absolute inset-0 rounded-full border-8 border-[#F6F5F1] shadow-sm z-0" />
+            
+            {/* The Image (Main Photo) */}
+            <div className="w-full h-full rounded-full overflow-hidden border border-[#D2D2D2]">
+              <Image 
+                src="/profile-user.jpg" 
+                alt="Profile" 
+                width={304} 
+                height={304} 
+                className="object-cover w-full h-full"
+              />
             </div>
 
-            <button className="absolute bottom-2 right-2 flex h-16.75 w-16.75 items-center justify-center rounded-full bg-[#F5CA1C] text-[#0F0F0D] shadow-sm transition hover:brightness-95">
-              <Camera size={24} />
+            {/* Camera Button (Rectangle 16) */}
+            <button className="absolute bottom-5 right-2.5 w-16.75 h-16.75 bg-[#F5CA1C] rounded-full flex items-center justify-center shadow-md hover:scale-105 transition-transform z-10">
+               <Icon icon="solar:camera-bold" className="text-black text-[32px]" />
             </button>
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <Input label="First Name" placeholder="Zafira" />
-            <Input label="Last Name" placeholder="Noerr" />
+        {/* Right Side: Form Fields */}
+        <div className="max-w-156.25 space-y-7.5">
+          
+          <div className="grid grid-cols-2 gap-6.25">
+            <div className="space-y-2.5">
+              <label className="text-[16px] text-black font-normal ml-1">First Name</label>
+              <input 
+                type="text" 
+                defaultValue="Zafira" 
+                className="w-full h-13 px-5 rounded-[15px] border border-[#9CA3AF] bg-white outline-none focus:border-[#F5CA1C] transition"
+              />
+            </div>
+            <div className="space-y-2.5">
+              <label className="text-[16px] text-black font-normal ml-1">Last Name</label>
+              <input 
+                type="text" 
+                defaultValue="Noerr" 
+                className="w-full h-13 px-5 rounded-[15px] border border-[#9CA3AF] bg-white outline-none focus:border-[#F5CA1C] transition"
+              />
+            </div>
           </div>
 
-          <Input label="Email" placeholder="ZafiraNackKeche@gmail.com" type="email" icon={<Lock size={18} className="text-[#757575]" />} />
-          <Input label="Occupation" placeholder="Student" />
+          <div className="space-y-2.5">
+            <label className="text-[16px] text-black font-normal ml-1">Email</label>
+            <div className="relative">
+              <input 
+                type="email" 
+                defaultValue="ZafiraNackKeche@gmail.com" 
+                className="w-full h-13 px-5 pr-12 rounded-[15px] border border-[#9CA3AF] bg-white outline-none focus:border-[#F5CA1C] transition"
+              />
+              <Lock className="absolute right-5 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={18} />
+            </div>
+          </div>
 
-          <div>
-            <label className="mb-2 block text-base font-normal text-[#3A3231]">Bio</label>
-            <textarea
-              className="min-h-34 w-full rounded-[15px] border border-[#8C8C8C] p-4 text-sm text-[#6B7280] outline-none transition focus:border-fin-gold focus:ring-1 focus:ring-fin-gold"
-              rows="6"
-              defaultValue="Target: Hemat buat beli MacBook Air M3"
+          <div className="space-y-2.5">
+            <label className="text-[16px] text-black font-normal ml-1">Occupation</label>
+            <input 
+              type="text" 
+              defaultValue="Student" 
+              className="w-full h-13 px-5 rounded-[15px] border border-[#9CA3AF] bg-white outline-none focus:border-[#F5CA1C] transition"
             />
           </div>
 
-          <div className="flex justify-end pt-2">
-            <button className="w-full rounded-full border border-[#8C8C8C] bg-[#232522] px-8 py-3 text-center text-lg font-semibold text-[#ECC939] shadow-sm transition hover:brightness-95 sm:w-47.5">
+          <div className="space-y-2.5">
+            <label className="text-[16px] text-black font-normal ml-1">Bio</label>
+            <textarea 
+              rows="4"
+              defaultValue="Target: Hemat buat beli MacBook Air M3" 
+              className="w-full px-5 py-3.75 rounded-[15px] border border-[#9CA3AF] bg-white outline-none focus:border-[#F5CA1C] transition resize-none min-h-35"
+            />
+          </div>
+
+          <div className="flex justify-end">
+            <button className="h-14 px-11 bg-[#1D1D1D] text-[#F5CA1C] rounded-full text-[18px] font-bold shadow-lg hover:bg-black transition-colors">
               Save Change
             </button>
           </div>
@@ -54,24 +106,4 @@ export default function ProfileForm() {
       </div>
     </div>
   );
-}
-
-// Sub-komponen Input (Bisa dipisah filenya nanti kalau sering dipakai)
-function Input({ label, placeholder, type = "text", icon }) {
-  return (
-    <div>
-      <label className="mb-2 block text-base font-normal text-[#3A3231]">
-        {label}
-      </label>
-
-      <div className="relative">
-        <input
-          type={type}
-          defaultValue={placeholder}
-          className="h-11.5 w-full rounded-[15px] border border-[#8C8C8C] px-4 pr-12 text-sm text-[#6B7280] outline-none transition focus:border-fin-gold focus:ring-1 focus:ring-fin-gold"
-        />
-        {icon && <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2">{icon}</span>}
-      </div>
-    </div>
-  );
-}
+};
