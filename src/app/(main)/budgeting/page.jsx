@@ -1,16 +1,31 @@
 "use client";
 import React, { useState } from "react";
 import Header from "../../components/header";
-import { Plus, Target, AlertTriangle, X, Search, CheckCircle2, PencilLine } from "lucide-react";
+import { 
+  Plus, 
+  Target, 
+  AlertTriangle, 
+  X, 
+  Search, 
+  CheckCircle2, 
+  PencilLine,
+  SearchX
+} from "lucide-react";
 
 export default function BudgetingPage() {
-  // --- UX STATES ---
   const [filter, setFilter] = useState("Active");
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // State untuk Modal Adjust Budget
   const [showAdjust, setShowAdjust] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
+  const [adjustAmount, setAdjustAmount] = useState("");
 
-  // --- DUMMY DATA ---
+  // State untuk Modal Add Budget (Baru)
+  const [showAddBudget, setShowAddBudget] = useState(false);
+  const [newCategory, setNewCategory] = useState("");
+  const [newLimit, setNewLimit] = useState("");
+
   const budgetData = [
     { id: 1, label: "Food & Dining", spent: "Rp 1.800.000", limit: "Rp 2.000.000", percent: 90, daysLeft: "4", status: "Active", isWarning: true },
     { id: 2, label: "Transportation", spent: "Rp 400.000", limit: "Rp 1.500.000", percent: 26, daysLeft: "4", status: "Active", isWarning: false },
@@ -18,101 +33,232 @@ export default function BudgetingPage() {
     { id: 4, label: "Entertainment", spent: "Rp 1.200.000", limit: "Rp 1.000.000", percent: 120, daysLeft: "4", status: "Overlimit", isWarning: true },
   ];
 
-  // --- LOGIC FILTER & SEARCH ---
   const filteredData = budgetData.filter((item) => {
     const matchesSearch = item.label.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter = filter === "All" ? true : item.status === filter;
     return matchesFilter && matchesSearch;
   });
 
+  // Action Handlers
   const openAdjust = (cat) => {
     setSelectedCategory(cat);
+    setAdjustAmount("");
     setShowAdjust(true);
   };
 
+  const handleSaveAdjust = () => {
+    console.log(`Menyimpan limit baru untuk ${selectedCategory}: Rp ${adjustAmount}`);
+    setShowAdjust(false);
+  };
+
+  const handleAddBudget = () => {
+    console.log(`Membuat anggaran baru: ${newCategory} dengan limit Rp ${newLimit}`);
+    // Reset form setelah disave
+    setNewCategory("");
+    setNewLimit("");
+    setShowAddBudget(false);
+  };
+
   return (
-    <div className="space-y-10 animate-in fade-in duration-700 pb-20 relative">
-      <Header name="ABP" />
+    <div className="space-y-8 animate-in fade-in duration-700 pb-20 relative">
+      <Header />
 
       {/* --- HERO SECTION --- */}
-      <section className="bg-[#1A1A1A] rounded-[40px] p-10 text-white relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-1/3 h-full bg-[#FFD600] opacity-10 blur-[80px]"></div>
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="space-y-2 text-center md:text-left">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#FFD600]">Overall Status</span>
-            <h2 className="text-4xl font-black tracking-tighter">78% Anggaran Terpakai</h2>
-            <p className="text-sm text-gray-400 font-medium italic">
-              Sisa hari di bulan April: <span className="text-white font-bold">4 Hari Lagi</span>.
+      <section className="bg-[#1A1A1A] rounded-[32px] p-8 text-white relative overflow-hidden shadow-lg">
+        <div className="absolute right-0 top-0 w-1/2 h-full bg-gradient-to-l from-[#FFD600]/20 to-transparent blur-[60px] pointer-events-none"></div>
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="space-y-2 text-left">
+            <span className="inline-block px-3 py-1 rounded-full bg-white/10 text-[9px] font-black uppercase tracking-[0.3em] text-[#FFD600] border border-white/10 backdrop-blur-sm">Overall Status</span>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tighter">78% Terpakai</h2>
+            <p className="text-xs text-gray-400 font-medium">
+              Sisa hari di bulan ini: <span className="text-white font-bold">4 Hari Lagi</span>
             </p>
           </div>
-          <div className="hidden md:block text-right">
-            <p className="text-[10px] font-black uppercase opacity-50 tracking-widest">Sisa Saldo Anggaran</p>
-            <p className="text-4xl font-black text-[#FFD600]">Rp 1.250.000</p>
+          <div className="text-left md:text-right bg-white/5 px-6 py-5 rounded-2xl border border-white/10 backdrop-blur-md w-full md:w-auto">
+            <p className="text-[9px] font-black uppercase opacity-70 tracking-widest mb-1 text-[#FFD600]">Sisa Saldo Anggaran</p>
+            <p className="text-2xl font-black text-white">Rp 1.250.000</p>
           </div>
         </div>
       </section>
 
-      {/* --- CONTROL BAR: SEARCH & FILTER --- */}
-      <section className="flex flex-col xl:flex-row justify-between items-center gap-6">
-        {/* Filter Tabs */}
-        <div className="flex bg-white border border-[#E8E2D9] p-1.5 rounded-2xl shadow-sm">
-          {["Active", "Completed", "Overlimit"].map((t) => (
-            <button key={t} onClick={() => setFilter(t)} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === t ? "bg-[#1A1A1A] text-[#FFD600]" : "text-[#7A746E] hover:text-black"}`}>
+      {/* --- CONTROL BAR --- */}
+      <section className="flex flex-col xl:flex-row justify-between items-center gap-4">
+        
+        {/* Filter Tabs Container */}
+        <div className="flex items-center bg-white p-1.5 rounded-2xl border border-[#E8E2D9] h-[52px] w-full xl:w-auto overflow-x-auto no-scrollbar shadow-sm">
+          {["All", "Active", "Completed", "Overlimit"].map((t) => (
+            <button 
+              key={t} 
+              onClick={() => setFilter(t)} 
+              className={`flex-1 xl:flex-none h-full px-6 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center ${
+                filter === t 
+                ? "bg-[#1A1A1A] text-[#FFD600] shadow-md" 
+                : "text-[#A3A3A3] hover:text-[#1A1A1A] hover:bg-[#F6F5F1]"
+              }`}
+            >
               {t}
             </button>
           ))}
         </div>
 
-        {/* Search & Add Button */}
-        <div className="flex items-center gap-3 w-full xl:w-auto">
-          <div className="relative flex-1 md:w-80">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A3A3A3]" size={18} />
+        {/* Search & Add Button Container */}
+        <div className="flex items-center gap-3 w-full xl:w-auto h-[52px]">
+          <div className="relative flex-1 md:w-80 h-full group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A3A3A3] group-focus-within:text-[#FFD600] transition-colors" size={18} />
             <input
               type="text"
-              placeholder="Find a category..."
+              placeholder="Cari kategori..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 h-12 bg-white border border-[#E8E2D9] rounded-2xl text-xs font-bold outline-none focus:border-[#FFD600] transition-all shadow-sm"
+              className="w-full h-full pl-12 pr-4 bg-white border border-[#E8E2D9] rounded-2xl text-xs font-bold outline-none focus:border-[#FFD600] transition-all shadow-sm"
             />
           </div>
-          <button className="p-3 bg-[#1A1A1A] text-[#FFD600] rounded-2xl shadow-lg hover:scale-110 active:scale-95 transition-all">
-            <Plus size={24} />
+          
+          {/* Tombol Add Budget - Ditambahkan onClick */}
+          <button 
+            onClick={() => setShowAddBudget(true)}
+            className="h-full w-[52px] flex-shrink-0 flex items-center justify-center bg-[#1A1A1A] text-[#FFD600] rounded-2xl shadow-lg hover:bg-black active:scale-95 transition-all"
+          >
+            <Plus size={20} strokeWidth={3} />
           </button>
         </div>
       </section>
 
       {/* --- BUDGET GRID --- */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredData.length > 0 ? (
           filteredData.map((budget) => <CategoryCard key={budget.id} {...budget} onAdjust={() => openAdjust(budget.label)} />)
         ) : (
-          <div className="col-span-full py-24 text-center border-2 border-dashed border-[#E8E2D9] rounded-[40px] bg-[#F6F5F1]/30">
-            <p className="text-[#A3A3A3] font-bold">Kategori "{searchQuery}" tidak ditemukan.</p>
+          <div className="col-span-full py-24 flex flex-col items-center justify-center border-2 border-dashed border-[#E8E2D9] rounded-[32px] bg-white">
+            <div className="w-16 h-16 bg-[#F6F5F1] rounded-full flex items-center justify-center mb-4 text-[#A3A3A3]">
+              <SearchX size={32} />
+            </div>
+            <p className="text-[#1A1A1A] font-black text-lg tracking-tight">Kategori tidak ditemukan</p>
+            <p className="text-[#A3A3A3] text-sm mt-1">Coba gunakan kata kunci lain untuk "{searchQuery}".</p>
           </div>
         )}
       </div>
 
-      {/* --- MODAL ADJUST --- */}
-      {showAdjust && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6 animate-in zoom-in duration-300">
-          <div className="bg-white w-full max-w-md rounded-[32px] p-10 shadow-2xl relative border border-[#E8E2D9]">
-            <button onClick={() => setShowAdjust(false)} className="absolute right-8 top-8 text-[#A3A3A3] hover:text-black transition-colors">
-              <X size={24} />
+      {/* ================= MODAL SECTION ================= */}
+
+      {/* --- MODAL ADD NEW BUDGET --- */}
+      {showAddBudget && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddBudget(false)}></div>
+          
+          <div className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl relative border border-[#E8E2D9] animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setShowAddBudget(false)} 
+              className="absolute right-6 top-6 p-2 text-[#A3A3A3] hover:text-[#1A1A1A] hover:bg-[#F6F5F1] rounded-full transition-all"
+            >
+              <X size={20} />
             </button>
 
-            <h3 className="text-2xl font-black tracking-tighter mb-1">Adjust Budget</h3>
-            <p className="text-sm text-[#7A746E] mb-10 font-medium">
-              Ubah limit anggaran untuk kategori <span className="text-black font-bold">{selectedCategory}</span>
-            </p>
+            <div className="mb-8">
+              <h3 className="text-2xl font-black tracking-tighter text-[#1A1A1A] mb-2">Tambah Anggaran</h3>
+              <p className="text-sm text-[#7A746E] font-medium leading-relaxed">
+                Buat kategori target anggaran baru untuk mengontrol arus kas Anda.
+              </p>
+            </div>
+
+            <div className="space-y-5">
+              {/* Input Nama Kategori */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3] ml-1">Nama Kategori</label>
+                <input 
+                  type="text" 
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                  placeholder="Contoh: Belanja Bulanan" 
+                  className="w-full h-14 px-6 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all" 
+                />
+              </div>
+
+              {/* Input Limit Nominal */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3] ml-1">Target Bulanan (Rp)</label>
+                <div className="relative">
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-[#A3A3A3]">Rp</span>
+                  <input 
+                    type="number" 
+                    value={newLimit}
+                    onChange={(e) => setNewLimit(e.target.value)}
+                    placeholder="0" 
+                    className="w-full h-14 pl-14 pr-6 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all" 
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-4 pt-4">
+                 <button 
+                  onClick={() => setShowAddBudget(false)} 
+                  className="flex-1 h-[52px] flex items-center justify-center bg-white border border-[#E8E2D9] text-[#1A1A1A] rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-[#F6F5F1] transition-all"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={handleAddBudget} 
+                  disabled={!newCategory || !newLimit}
+                  className="flex-[2] h-[52px] flex items-center justify-center bg-[#1A1A1A] text-[#FFD600] border border-[#1A1A1A] rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-black active:scale-95 disabled:opacity-50 transition-all"
+                >
+                  Buat Target
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL ADJUST BUDGET --- */}
+      {showAdjust && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAdjust(false)}></div>
+          
+          <div className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl relative border border-[#E8E2D9] animate-in zoom-in-95 duration-300">
+            <button 
+              onClick={() => setShowAdjust(false)} 
+              className="absolute right-6 top-6 p-2 text-[#A3A3A3] hover:text-[#1A1A1A] hover:bg-[#F6F5F1] rounded-full transition-all"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="mb-8">
+              <h3 className="text-2xl font-black tracking-tighter text-[#1A1A1A] mb-2">Adjust Budget</h3>
+              <p className="text-sm text-[#7A746E] font-medium leading-relaxed">
+                Sesuaikan limit anggaran bulanan untuk kategori <span className="text-[#1A1A1A] font-bold px-2 py-0.5 bg-[#F6F5F1] rounded-md">{selectedCategory}</span>
+              </p>
+            </div>
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Nominal Baru (Rp)</label>
-                <input type="number" placeholder="Contoh: 2000000" className="w-full h-14 px-6 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold outline-none focus:border-[#FFD600] transition-all" />
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3] ml-1">Nominal Baru (Rp)</label>
+                <div className="relative">
+                  <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-[#A3A3A3]">Rp</span>
+                  <input 
+                    type="number" 
+                    value={adjustAmount}
+                    onChange={(e) => setAdjustAmount(e.target.value)}
+                    placeholder="0" 
+                    className="w-full h-14 pl-14 pr-6 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all" 
+                  />
+                </div>
               </div>
-              <button onClick={() => setShowAdjust(false)} className="w-full h-14 bg-[#1A1A1A] text-[#FFD600] rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-black transition-all">
-                Simpan Perubahan
-              </button>
+              
+              <div className="flex gap-4 pt-4">
+                 <button 
+                  onClick={() => setShowAdjust(false)} 
+                  className="flex-1 h-[52px] flex items-center justify-center bg-white border border-[#E8E2D9] text-[#1A1A1A] rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-[#F6F5F1] transition-all"
+                >
+                  Batal
+                </button>
+                <button 
+                  onClick={handleSaveAdjust} 
+                  disabled={!adjustAmount}
+                  className="flex-[2] h-[52px] flex items-center justify-center bg-[#1A1A1A] text-[#FFD600] border border-[#1A1A1A] rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-black active:scale-95 disabled:opacity-50 transition-all"
+                >
+                  Simpan Limit
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -123,64 +269,64 @@ export default function BudgetingPage() {
 
 // --- SUB-COMPONENT: CATEGORY CARD ---
 function CategoryCard({ label, spent, limit, percent, daysLeft, isWarning, onAdjust }) {
+  const progressWidth = Math.min(percent, 100);
+
   return (
-    <div className="bg-white border border-[#E8E2D9] p-8 rounded-[40px] shadow-sm hover:shadow-xl hover:border-[#FFD600]/30 transition-all group relative overflow-hidden">
-      {/* Header Kartu */}
-      <div className="flex justify-between items-center mb-10 relative z-10">
-        <div className="flex items-center gap-4">
-          <div className={`p-3 rounded-2xl transition-colors duration-500 ${isWarning ? "bg-red-50 text-red-500" : "bg-[#F6F5F1] text-[#1A1A1A] group-hover:bg-[#FFD600]/20"}`}>
-            <Target size={26} />
+    <div className="bg-white border border-[#E8E2D9] p-7 rounded-[32px] shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col h-full">
+      <div className="flex justify-between items-start z-10 gap-3 mb-6">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className={`w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-[20px] ${isWarning ? "bg-red-50 text-red-500" : "bg-[#F6F5F1] text-[#1A1A1A]"}`}>
+            <Target size={22} strokeWidth={2.5} />
           </div>
-          <div>
-            <h3 className="font-black text-[17px] tracking-tighter">{label}</h3>
-            <p className="text-[10px] text-[#7A746E] font-black uppercase tracking-widest">Monthly Target</p>
+          <div className="flex flex-col justify-center flex-1 min-w-0">
+            <h3 className="font-black text-base text-[#1A1A1A] leading-none truncate block" title={label}>{label}</h3>
+            <p className="text-[9px] text-[#A3A3A3] font-black uppercase tracking-widest mt-1.5 truncate">Monthly Target</p>
           </div>
         </div>
-        <div className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-transform group-hover:scale-105 ${isWarning ? "bg-red-50 text-red-600" : "bg-green-50 text-green-600"}`}>
-          {isWarning ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
+        
+        <div className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm border ${isWarning ? "bg-red-50 text-red-600 border-red-100" : "bg-[#FDFCFB] text-green-600 border-[#E8E2D9]"}`}>
+          {isWarning ? <AlertTriangle size={12} strokeWidth={2.5} /> : <CheckCircle2 size={12} strokeWidth={2.5} />}
           {isWarning ? "Waspada" : "Aman"}
         </div>
       </div>
 
-      <div className="space-y-6 relative z-10">
-        {/* Info Angka */}
-        <div className="flex justify-between items-end">
-          <div className="space-y-1">
-            <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">Pemakaian Anggaran</p>
-            <p className="text-xl font-black text-[#1A1A1A]">
-              {spent} <span className="text-xs text-[#A3A3A3] font-medium">/ {limit}</span>
+      <div className="space-y-4 z-10 flex-1 flex flex-col justify-center">
+        <div className="flex justify-between items-end gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest mb-1">Terpakai</p>
+            <p className="text-lg font-black text-[#1A1A1A] tracking-tighter truncate">
+              {spent} <span className="text-[11px] text-[#A3A3A3] font-bold tracking-normal">/ {limit}</span>
             </p>
           </div>
-          <div className="text-right">
-            <span className={`text-2xl font-black block leading-none ${isWarning ? "text-red-600" : "text-[#1A1A1A]"}`}>{percent}%</span>
+          <span className={`flex-shrink-0 text-2xl font-black block leading-none tracking-tighter ${isWarning ? "text-red-500" : "text-[#1A1A1A]"}`}>
+            {percent}%
+          </span>
+        </div>
+
+        <div className="w-full h-2.5 bg-[#F6F5F1] rounded-full overflow-hidden border border-[#E8E2D9]/50">
+          <div 
+            className={`h-full rounded-full transition-all duration-1000 ease-out ${isWarning ? "bg-red-500" : "bg-[#1A1A1A]"}`} 
+            style={{ width: `${progressWidth}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center z-10 pt-5 mt-6 border-t border-[#F6F5F1] mt-auto">
+        <div className="flex items-center -space-x-2 flex-shrink-0">
+          <div className="w-9 h-9 rounded-full border-[2.5px] border-white bg-[#FFD600] text-[10px] flex items-center justify-center font-black shadow-sm z-10 relative">
+            {daysLeft}d
+          </div>
+          <div className="h-9 pr-3 pl-3 rounded-full border-[2.5px] border-white bg-[#1A1A1A] text-white text-[9px] flex items-center justify-center font-black uppercase tracking-tighter shadow-sm">
+            Left
           </div>
         </div>
 
-        {/* Progress Bar */}
-        <div className="w-full h-3 bg-[#F6F5F1] rounded-full overflow-hidden p-0.5 border border-[#E8E2D9]">
-          <div className={`h-full rounded-full transition-all duration-[1500ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] ${isWarning ? "bg-red-500" : "bg-[#1A1A1A]"}`} style={{ width: `${Math.min(percent, 100)}%` }} />
-        </div>
-
-        {/* Footer Kartu (Sisa Hari & Tombol Adjust) */}
-        <div className="flex justify-between items-center pt-2">
-          {/* Visual Sisa Hari (Double Circle) */}
-          <div className="flex -space-x-2 group/days cursor-help">
-            <div className="w-9 h-9 rounded-full border-[3px] border-white bg-[#FFD600] text-[11px] flex items-center justify-center font-black shadow-sm transition-transform group-hover/days:-translate-x-1">{daysLeft}d</div>
-            <div className="w-9 h-9 rounded-full border-[3px] border-white bg-[#1A1A1A] text-white text-[9px] flex items-center justify-center font-black uppercase tracking-tighter shadow-sm transition-transform group-hover/days:translate-x-1">
-              Left
-            </div>
-          </div>
-
-          {/* Tombol Adjust Lucide Version */}
-          <button
-            onClick={onAdjust}
-            className="flex items-center gap-2 px-5 py-2.5 bg-[#1A1A1A] text-[#FFD600] rounded-xl text-[10px] font-black uppercase tracking-widest 
-                        shadow-md hover:bg-black hover:shadow-xl active:scale-95 transition-all duration-300 transform opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0"
-          >
-            <PencilLine size={14} />
-            Adjust
-          </button>
-        </div>
+        <button
+          onClick={onAdjust}
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-4 h-9 bg-white border border-[#E8E2D9] text-[#1A1A1A] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#F6F5F1] hover:border-[#A3A3A3] active:scale-95 transition-all duration-300 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0"
+        >
+          <PencilLine size={14} /> Adjust
+        </button>
       </div>
     </div>
   );
