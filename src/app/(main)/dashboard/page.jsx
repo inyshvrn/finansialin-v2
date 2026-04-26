@@ -41,7 +41,7 @@ const Header = ({ name }) => (
 const BankCard = ({ type, icon: Icon, amount, color }) => (
   <div className="bg-white p-7 rounded-[32px] shadow-sm border border-[#E8E2D9] flex flex-col justify-between h-48 relative overflow-hidden group hover:shadow-md transition-all">
     
-    {/* --- PATTERN LAYER (Dot Matrix halus) --- */}
+    {/* --- PATTERN LAYER (Dot Matrix) --- */}
     <div className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity pointer-events-none" 
       style={{ 
         backgroundImage: `radial-gradient(${color} 0.5px, transparent 0.5px), radial-gradient(${color} 0.5px, transparent 0.5px)`,
@@ -50,7 +50,7 @@ const BankCard = ({ type, icon: Icon, amount, color }) => (
       }}>
     </div>
 
-    {/* Dekorasi lingkaran halus di pojok */}
+    {/* Dekorasi lingkaran halus */}
     <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 transition-opacity" 
       style={{backgroundColor: color}}>
     </div>
@@ -60,24 +60,19 @@ const BankCard = ({ type, icon: Icon, amount, color }) => (
       <div>
         <p className="text-[11px] text-[#A3A3A3] font-black uppercase tracking-widest">{type}</p>
       </div>
-      {/* Box icon interaktif */}
       <div className="p-3 rounded-2xl shadow-sm bg-white border border-[#E8E2D9]/50 group-hover:scale-110 transition-transform">
         <Icon size={24} style={{color: color}} />
       </div>
     </div>
 
-    {/* Section Angka ( Amount & Pencil Button ) */}
-    {/* Mengubah mt-auto menjadi pb-2 agar posisi angka sedikit lebih naik */}
-    <div className="flex justify-between items-end relative z-10 pb-2">
+    <div className="mt-auto flex justify-between items-end relative z-10">
       <div>
-        {/* Mengecilkan sedikit ukuran teks balance agar lebih proporsional */}
         <p className="text-3xl font-black tracking-tighter text-[#1A1A1A]">{amount}</p>
         <div className="flex items-center gap-2 mt-1">
           <p className="text-[10px] text-[#A3A3A3] font-medium">Total balance</p>
           <div className="h-px w-8 bg-[#E8E2D9]"></div>
         </div>
       </div>
-      {/* Tombol edit dengan interaksi kuning */}
       <button className="p-2.5 bg-[#F6F5F1] hover:bg-[#FFD600] text-[#A3A3A3] hover:text-[#1A1A1A] rounded-xl transition-all shadow-sm">
         <Pencil size={14} />
       </button>
@@ -116,7 +111,7 @@ export default function DashboardPage() {
     <div className="space-y-10">
       <Header name="ABP" />
 
-      {/* Row Kartu Bank - Tampilan Baru & Clean */}
+      {/* Row Kartu Bank dengan Pattern */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <BankCard 
           type="MBanking" icon={CreditCard} 
