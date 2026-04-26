@@ -8,15 +8,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        'fin-bg': '#FAF7F2',       // Cream
-        'fin-black': '#1A1A1A',    // Charcoal
-        'fin-gold': '#C5A059',     // Gold
-        'fin-taupe': '#7A746E',    // Grey Text
-        'fin-border': '#E8E2D9',   // Border Color
+        'fin-bg': '#FAF7F2',
+        'fin-black': '#1A1A1A',
+        'fin-gold': '#C5A059',
+        'fin-taupe': '#7A746E',
+        'fin-border': '#E8E2D9',
       },
       fontFamily: {
+        sans: ["var(--font-inclusive)", "Inter", "ui-sans-serif", "system-ui"],
         serif: ['"Playfair Display"', 'serif'],
-        sans: ['Inter', 'sans-serif'],
       },
     },
   },

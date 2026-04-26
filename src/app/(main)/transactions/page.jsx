@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import Header from "../components/header";
+import Header from "../../components/header";
 import { Plus, Filter, Search, ChevronDown, Edit3, Trash2, TrendingUp, TrendingDown } from "lucide-react";
 
 export default function TransactionsPage() {
@@ -30,13 +30,9 @@ export default function TransactionsPage() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A3A3A3]" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search for description" 
-              className="w-full h-12 bg-[#F6F5F1] rounded-xl pl-12 pr-4 border-none focus:ring-2 focus:ring-[#FFD600] text-sm font-medium"
-            />
+            <input type="text" placeholder="Search for description" className="w-full h-12 bg-[#F6F5F1] rounded-xl pl-12 pr-4 border-none focus:ring-2 focus:ring-[#FFD600] text-sm font-medium" />
           </div>
-          
+
           <div className="flex items-center gap-3 w-full md:w-auto">
             <button className="p-3 bg-[#F6F5F1] rounded-xl border border-[#E8E2D9] hover:bg-gray-100 transition">
               <Filter size={18} className="text-[#7A746E]" />
@@ -70,12 +66,14 @@ export default function TransactionsPage() {
                   <td className="px-6 py-5 text-sm font-medium text-[#7A746E]">{trx.desc}</td>
                   <td className="px-6 py-5 text-sm font-medium text-[#7A746E]">{trx.cat}</td>
                   <td className="px-6 py-5 text-sm font-medium text-[#7A746E]">{trx.type}</td>
-                  <td className={`px-6 py-5 text-sm font-black ${trx.type === 'Expenses' ? 'text-red-500' : 'text-[#1A1A1A]'}`}>
-                    {trx.amount}
-                  </td>
+                  <td className={`px-6 py-5 text-sm font-black ${trx.type === "Expenses" ? "text-red-500" : "text-[#1A1A1A]"}`}>{trx.amount}</td>
                   <td className="px-6 py-5 text-right space-x-3">
-                    <button className="text-[#1A1A1A] hover:text-[#FFD600] transition"><Edit3 size={18} /></button>
-                    <button className="text-[#1A1A1A] hover:text-red-500 transition"><Trash2 size={18} /></button>
+                    <button className="text-[#1A1A1A] hover:text-[#FFD600] transition">
+                      <Edit3 size={18} />
+                    </button>
+                    <button className="text-[#1A1A1A] hover:text-red-500 transition">
+                      <Trash2 size={18} />
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -92,13 +90,11 @@ function SummaryCard({ label, amount, trend, color, textColor }) {
   return (
     <div className={`${color} p-7 rounded-[32px] border border-[#E8E2D9] shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all`}>
       <div className="space-y-1 relative z-10">
-        <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? 'text-[#FFD600]/60' : 'text-[#1A1A1A]/60'}`}>{label}</p>
+        <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#FFD600]/60" : "text-[#1A1A1A]/60"}`}>{label}</p>
         <h3 className={`text-xl font-black tracking-tighter ${textColor}`}>{amount}</h3>
         <div className="flex items-center gap-1.5 pt-2">
-          <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${isDark ? 'bg-[#FFD600] text-[#1A1A1A]' : 'bg-[#1A1A1A] text-[#FFD600]'}`}>
-            {trend} ↗
-          </span>
-          <span className={`text-[9px] font-bold ${isDark ? 'text-white/40' : 'text-[#1A1A1A]/40'}`}>than last month</span>
+          <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${isDark ? "bg-[#FFD600] text-[#1A1A1A]" : "bg-[#1A1A1A] text-[#FFD600]"}`}>{trend} ↗</span>
+          <span className={`text-[9px] font-bold ${isDark ? "text-white/40" : "text-[#1A1A1A]/40"}`}>than last month</span>
         </div>
       </div>
     </div>

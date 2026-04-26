@@ -1,8 +1,8 @@
 "use client";
 import React from 'react';
 import Image from 'next/image';
-import Link from 'next/link'; // Import Link untuk navigasi
-import { usePathname } from 'next/navigation'; // Import hook untuk mendeteksi path
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { 
   LayoutGrid, 
   ArrowRightLeft, 
@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 const Sidebar = () => {
-  const pathname = usePathname(); // Mendapatkan path URL saat ini (misal: /settings)
+  const pathname = usePathname();
 
   const menus = [
     { name: 'Dashboard', icon: LayoutGrid, path: '/dashboard' },
@@ -24,10 +24,10 @@ const Sidebar = () => {
   ];
 
   return (
-    <aside className="w-60 h-screen bg-white border-r border-[#E8E2D9] fixed left-0 top-0 flex flex-col p-6 z-50">
+    <aside className="w-60 h-screen bg-white border-r border-[#E8E2D9] fixed left-0 top-0 flex flex-col px-6 pt-8 pb-4 z-50">
       {/* Logo Section */}
       <div className="mb-10 w-full flex justify-center">
-        <Link href="/dashboard"> {/* Klik logo balik ke dashboard */}
+        <Link href="/dashboard">
           <Image
             src="/logolengkap.svg" 
             alt="Finansialin Logo" 
@@ -47,13 +47,12 @@ const Sidebar = () => {
           return (
             <Link 
               key={item.name} 
-              href={item.path} // Berpindah file sesuai folder di src/app
+              href={item.path}
               className={`flex items-center gap-4 px-4 py-3 rounded-xl cursor-pointer transition-all relative group
                 ${isActive 
                   ? 'bg-[#FFD600]/10 text-[#1A1A1A] font-bold' 
                   : 'text-[#7A746E] hover:bg-gray-50'}`}
             >
-              {/* Indikator Kuning Aktif - Sesuai Figma */}
               {isActive && (
                 <div className="absolute left-[-24px] w-1.5 h-8 bg-[#FFD600] rounded-r-full" />
               )}
@@ -69,9 +68,10 @@ const Sidebar = () => {
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="mt-auto pt-6 border-t border-[#E8E2D9]">
-        <button className="flex items-center gap-4 px-4 py-3 text-[#7A746E] hover:text-red-500 w-full transition-colors group font-medium text-sm">
+      {/* Logout - Dibuat benar-benar ke bawah */}
+      <div className="mt-auto">
+        <div className="border-t border-[#E8E2D9] mb-2" /> {/* Garis pemisah */}
+        <button className="flex items-center gap-4 px-4 py-3 text-[#7A746E] hover:text-red-600 w-full transition-colors group font-medium text-sm">
           <LogOut size={20} className="group-hover:translate-x-1 transition-transform" />
           <span>Logout</span>
         </button>
