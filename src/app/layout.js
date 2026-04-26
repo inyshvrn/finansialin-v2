@@ -1,22 +1,26 @@
+import { Plus_Jakarta_Sans } from "next/font/google"; // Import font-nya
 import "./globals.css";
 import Sidebar from "./components/sidebar";
 import Chatbot from "./components/chatbot";
 
+// Konfigurasi font
+const jakartaSans = Plus_Jakarta_Sans({ 
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"], // Ambil semua ketebalan yang kita butuh
+  variable: "--font-jakarta", // Set variabel buat CSS
+});
+
 export default function RootLayout({ children }) {
   return (
     <html lang="id">
-      <body className="bg-fin-bg text-fin-black antialiased">
-        {/* Sidebar */}
-        <Sidebar />
-
-        {/* Main Content with left margin for fixed sidebar */}
-        <div className="ml-62.5 min-h-screen py-4 pr-4">
-          <main className="flex-1 overflow-y-auto bg-white border border-fin-border rounded-[40px] shadow-sm min-h-[calc(100vh-2rem)] p-6">
+      {/* Tambahkan className font-nya di body */}
+      <body className={`${jakartaSans.className} bg-[#F6F5F1] text-[#1A1A1A] antialiased`}>
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <main className="flex-1 ml-60 p-10 relative">
             {children}
+            <Chatbot />
           </main>
-          
-          {/* Chatbot melayang di kanan bawah */}
-          <Chatbot />
         </div>
       </body>
     </html>
