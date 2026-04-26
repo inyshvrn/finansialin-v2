@@ -19,18 +19,32 @@ const Header = () => {
   
   // UX States
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(""); // State baru untuk search
+
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Data User (Bisa dihubungkan ke State/Context nantinya)
+  // Data User
   const userData = {
     name: "Muhammad Furqan Maulidi",
     email: "frqmld@student.telkomuniversity.ac.id",
     role: "Informatics Student",
     bio: "Head of Cadreization Department. Fokus pada pengembangan web dan riset Machine Learning.",
     avatar: "M"
+  };
+
+  // --- ACTIONS ---
+
+  // Fungsi Action Search
+  const handleSearch = (e) => {
+    e.preventDefault(); // Mencegah page reload
+    if (searchQuery.trim()) {
+      alert(`Mencari data untuk: "${searchQuery}"\n\n(Nantinya ini bisa dihubungkan ke fitur filter atau routing halaman pencarian)`);
+      setSearchQuery(""); // Bersihkan input setelah search
+      setIsSearchFocused(false); // Kecilkan kembali bar
+    }
   };
 
   const handleLogout = () => {
@@ -43,7 +57,7 @@ const Header = () => {
   return (
     <>
       <header className="flex justify-between items-center mb-10 relative z-40">
-        {/* Welcome Section - Yang tadinya hilang */}
+        {/* Welcome Section */}
         <div className="animate-in slide-in-from-left duration-700">
           <h1 className="text-2xl font-black tracking-tighter text-[#1A1A1A]">
             Hi, {userData.name.split(' ')[0]}
@@ -54,20 +68,29 @@ const Header = () => {
         </div>
 
         <div className="flex items-center gap-6">
-          {/* Search Bar */}
-          <div className={`relative transition-all duration-300 ${isSearchFocused ? 'w-96' : 'w-72'}`}>
+          
+          {/* --- SEARCH BAR YANG SUDAH BERFUNGSI --- */}
+          {/* Diubah dari div menjadi form agar bisa di-submit (tekan Enter) */}
+          <form 
+            onSubmit={handleSearch} 
+            className={`relative transition-all duration-300 ${isSearchFocused ? 'w-96' : 'w-72'}`}
+          >
             <input 
               type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search anything..." 
               onFocus={() => setIsSearchFocused(true)}
               onBlur={() => setIsSearchFocused(false)}
               className="w-full h-12 bg-white rounded-2xl pl-12 pr-6 shadow-sm border border-[#E8E2D9] focus:outline-none focus:border-[#FFD600] transition-all font-medium text-xs" 
             />
-            <Search 
-              className={`absolute left-4 top-3.5 transition-colors ${isSearchFocused ? 'text-[#FFD600]' : 'text-[#A3A3A3]'}`} 
-              size={18} 
-            />
-          </div>
+            <button type="submit" className="absolute left-4 top-3.5 transition-colors">
+              <Search 
+                className={isSearchFocused ? 'text-[#FFD600]' : 'text-[#A3A3A3] hover:text-[#1A1A1A] transition-colors'} 
+                size={18} 
+              />
+            </button>
+          </form>
 
           <div className="flex items-center gap-4">
             {/* Notification Bell */}
@@ -126,47 +149,59 @@ const Header = () => {
         </div>
       </header>
 
-      {/* --- POPUP: MY PROFILE (Biodata) --- */}
+      {/* --- POPUP: MY PROFILE (SUDAH RESPONSIVE & SCROLLABLE) --- */}
       {showProfileModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-white w-full max-w-lg rounded-[40px] shadow-2xl relative overflow-hidden animate-in zoom-in duration-300 border border-[#E8E2D9]">
-            <div className="h-32 bg-[#1A1A1A] relative">
-              <button onClick={() => setShowProfileModal(false)} className="absolute right-6 top-6 text-white/50 hover:text-white transition-colors bg-white/10 p-2 rounded-full backdrop-blur-sm">
-                <X size={20} />
-              </button>
-            </div>
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+          
+          {/* Kontainer fleksibel ini memastikan modal bisa di-scroll ke bawah/atas jika layar di-zoom */}
+          <div className="flex min-h-full items-center justify-center p-4 py-12">
             
-            <div className="px-10 pb-10">
-              <div className="relative -mt-12 mb-6">
-                <div className="w-24 h-24 rounded-[32px] bg-[#FFD600] border-8 border-white flex items-center justify-center text-4xl font-black text-[#1A1A1A] shadow-lg">
-                  {userData.avatar}
-                </div>
+            {/* Modal Card */}
+            <div className="bg-white w-full max-w-lg rounded-[40px] shadow-2xl relative overflow-hidden animate-in zoom-in duration-300 border border-[#E8E2D9]">
+              <div className="h-32 bg-[#1A1A1A] relative">
+                <button 
+                  onClick={() => setShowProfileModal(false)} 
+                  className="absolute right-6 top-6 text-white/50 hover:text-white transition-colors bg-white/10 p-2 rounded-full backdrop-blur-sm z-10"
+                >
+                  <X size={20} />
+                </button>
               </div>
-
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-2xl font-black text-[#1A1A1A] tracking-tighter">{userData.name}</h3>
-                  <p className="text-sm font-bold text-[#FFD600] uppercase tracking-widest">{userData.role}</p>
+              
+              <div className="px-6 sm:px-10 pb-10">
+                <div className="relative -mt-12 mb-6">
+                  <div className="w-24 h-24 rounded-[32px] bg-[#FFD600] border-8 border-white flex items-center justify-center text-4xl font-black text-[#1A1A1A] shadow-lg">
+                    {userData.avatar}
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
-                  <ProfileDetail icon={<Mail size={16}/>} label="Email" value={userData.email} />
-                  <ProfileDetail icon={<Briefcase size={16}/>} label="Organization" value="Informatics Student Association" />
-                  <ProfileDetail icon={<GraduationCap size={16}/>} label="University" value="Telkom University" />
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-2xl font-black text-[#1A1A1A] tracking-tighter">{userData.name}</h3>
+                    <p className="text-sm font-bold text-[#FFD600] uppercase tracking-widest">{userData.role}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4">
+                    <ProfileDetail icon={<Mail size={16}/>} label="Email" value={userData.email} />
+                    <ProfileDetail icon={<Briefcase size={16}/>} label="Organization" value="Informatics Student Association" />
+                    <ProfileDetail icon={<GraduationCap size={16}/>} label="University" value="Telkom University" />
+                  </div>
+
+                  <div className="p-5 bg-[#F6F5F1] rounded-3xl">
+                    <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest mb-2">Bio</p>
+                    <p className="text-sm text-[#7A746E] leading-relaxed font-medium italic">"{userData.bio}"</p>
+                  </div>
                 </div>
 
-                <div className="p-5 bg-[#F6F5F1] rounded-3xl">
-                  <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest mb-2">Bio</p>
-                  <p className="text-sm text-[#7A746E] leading-relaxed font-medium italic">"{userData.bio}"</p>
-                </div>
+                <button 
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    router.push('/settings');
+                  }}
+                  className="w-full mt-8 h-14 bg-[#1A1A1A] text-[#FFD600] rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-lg active:scale-95"
+                >
+                  Edit Full Profile
+                </button>
               </div>
-
-              <button 
-                onClick={() => router.push('/settings')}
-                className="w-full mt-8 h-14 bg-[#1A1A1A] text-[#FFD600] rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-black transition-all shadow-lg active:scale-95"
-              >
-                Edit Full Profile
-              </button>
             </div>
           </div>
         </div>

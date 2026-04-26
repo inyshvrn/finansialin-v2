@@ -1,19 +1,36 @@
 "use client";
 import React, { useState } from "react";
+import { Check } from "lucide-react";
 
 export default function Preferences() {
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+
+  // Simulasi Menyimpan Pengaturan
+  const handleApplySettings = (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    
+    setTimeout(() => {
+      setIsSaving(false);
+      setIsSuccess(true);
+      console.log("Pengaturan Display & Notifikasi berhasil disimpan.");
+      
+      // Kembali ke state normal setelah 3 detik
+      setTimeout(() => setIsSuccess(false), 3000);
+    }, 1500);
+  };
+
   return (
-    <div className="w-full animate-in slide-in-from-bottom-4 duration-700 space-y-12">
+    <form onSubmit={handleApplySettings} className="w-full animate-in slide-in-from-bottom-4 duration-700 space-y-12">
       
       {/* Section: Display Setting */}
       <section className="flex flex-col lg:flex-row gap-12 lg:gap-20">
-        {/* Judul Kategori (Fixed Width agar sejajar dengan posisi foto profil di tab sebelah) */}
         <div className="lg:w-[304px] shrink-0">
           <h3 className="text-[20px] font-bold text-black uppercase tracking-tight">Display Setting</h3>
           <p className="text-sm text-[#7A746E] mt-2 font-medium">Sesuaikan tampilan aplikasi sesuai kenyamanan mata Anda.</p>
         </div>
         
-        {/* Isi Konten (Flex-1 agar memanjang ke kanan) */}
         <div className="flex-1 space-y-10">
           {/* Theme Selection */}
           <div className="space-y-5">
@@ -69,17 +86,27 @@ export default function Preferences() {
         </div>
       </section>
 
-      {/* Save Button (Optional jika ingin ada tombol simpan khusus preferences) */}
+      {/* Save Button */}
       <div className="flex justify-end pt-6">
-        <button className="h-[56px] w-[233px] bg-[#1D1D1D] text-[#FFD600] rounded-full text-[18px] font-bold shadow-lg hover:bg-black transition-all duration-300">
-          Apply Settings
+        <button 
+          type="submit"
+          disabled={isSaving || isSuccess}
+          className={`h-[56px] w-[233px] rounded-full text-[18px] font-bold shadow-lg transition-all duration-300 flex items-center justify-center gap-2 ${
+            isSuccess 
+            ? "bg-green-500 text-white" 
+            : "bg-[#1D1D1D] text-[#FFD600] hover:bg-black active:scale-95 disabled:opacity-80"
+          }`}
+        >
+          {isSaving && <div className="w-5 h-5 border-2 border-[#FFD600] border-t-transparent rounded-full animate-spin" />}
+          {isSuccess && <Check size={20} />}
+          {isSaving ? "Applying..." : isSuccess ? "Saved!" : "Apply Settings"}
         </button>
       </div>
-    </div>
+    </form>
   );
 }
 
-// --- Sub-components (Disesuaikan agar seimbang) ---
+// --- Sub-components ---
 
 function ThemeOption({ label, active }) {
   return (
@@ -89,7 +116,6 @@ function ThemeOption({ label, active }) {
         ? "border-[#FFD600] bg-[#FFD600]/5 shadow-md" 
         : "border-[#E8E2D9] bg-white group-hover:border-[#9CA3AF]"
       }`}>
-        {/* Placeholder visual theme */}
         <div className="p-3 space-y-2">
            <div className={`h-2 w-10 rounded-full ${active ? 'bg-[#FFD600]' : 'bg-[#E8E2D9]'}`} />
            <div className={`h-2 w-full rounded-full ${active ? 'bg-[#FFD600]/40' : 'bg-[#F6F5F1]'}`} />
