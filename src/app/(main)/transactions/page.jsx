@@ -1,6 +1,7 @@
 "use client";
-import React, { useState, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Header from "../../components/header";
+import { apiRequest } from "@/lib/api";
 import { 
   Plus, Filter, Search, ChevronDown, Edit3, Trash2, 
   X, Calendar, ArrowUpRight, ArrowDownLeft, Camera, Keyboard,
@@ -8,6 +9,8 @@ import {
 } from "lucide-react";
 
 export default function TransactionsPage() {
+  const today = new Date().toISOString().slice(0, 10);
+
   // --- STATES UTAMA ---
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("All"); 
@@ -15,38 +18,124 @@ export default function TransactionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [addMethod, setAddMethod] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState("2026-04");
+  const [selectedMonth, setSelectedMonth] = useState(today.slice(0, 7));
   const monthInputRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
+  const [categories, setCategories] = useState([]);
 
   // --- CRUD STATES ---
-  const [transactions, setTransactions] = useState([
-    { id: 1, date: "2026-04-26", desc: "Gaji Handai Coffee", cat: "Salary", type: "Income", amount: 2000000 },
-    { id: 2, date: "2026-04-25", desc: "Kopi Kalcer", cat: "Food", type: "Expenses", amount: 25000 },
-    { id: 3, date: "2026-04-24", desc: "Beli Susu Kurma", cat: "Supplies", type: "Expenses", amount: 28000 },
-  ]);
+  const [transactions, setTransactions] = useState([]);
   const [editingTrx, setEditingTrx] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null); // State baru untuk modal delete
-  const [formData, setFormData] = useState({ desc: "", type: "Income", amount: "", cat: "", date: "2026-04-26" });
+  const [formData, setFormData] = useState({ desc: "", type: "Income", amount: "", cat: "", date: today, idCategory: null });
 
   const itemsPerPage = 25;
 
   // --- LOGIC CRUD ---
-  const handleSave = (e) => {
-    e.preventDefault();
-    if (editingTrx) {
-      setTransactions(transactions.map(t => t.id === editingTrx.id ? { ...formData, id: t.id, amount: Number(formData.amount) } : t));
-    } else {
-      const newTrx = { ...formData, id: Date.now(), amount: Number(formData.amount) };
-      setTransactions([newTrx, ...transactions]);
+  const normalizeTypeToUi = (type) => (type === "income" ? "Income" : "Expenses");
+  const normalizeTypeToApi = (type) => (type === "Income" ? "income" : "expense");
+
+  const loadTransactions = async () => {
+    setLoading(true);
+    setApiError("");
+
+    try {
+      const [txData, categoryData] = await Promise.all([
+        apiRequest("/api/transactions"),
+        apiRequest("/api/categories"),
+      ]);
+
+      const categoryMap = new Map((categoryData || []).map((c) => [c.idCategory, c.name]));
+      setCategories(categoryData || []);
+
+      const mapped = (txData || []).map((item) => {
+        const date = item?.date ? String(item.date).slice(0, 10) : today;
+        return {
+          id: item.idTransaction,
+          idCategory: item.idCategory ?? null,
+          date,
+          desc: item.description || "(No description)",
+          cat: item.idCategory ? (categoryMap.get(item.idCategory) || "Uncategorized") : "Uncategorized",
+          type: normalizeTypeToUi(item.type),
+          amount: Number(item.amount || 0),
+        };
+      });
+
+      setTransactions(mapped);
+    } catch (err) {
+      setApiError(err.message || "Failed to load transactions");
+    } finally {
+      setLoading(false);
     }
-    closeModal();
+  };
+
+  useEffect(() => {
+    loadTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const resolveCategoryId = (categoryName, type) => {
+    const normalized = categoryName.trim().toLowerCase();
+    if (!normalized) {
+      return null;
+    }
+
+    const apiType = normalizeTypeToApi(type);
+    const found = categories.find((cat) => {
+      const sameName = String(cat.name || "").trim().toLowerCase() === normalized;
+      const sameType = String(cat.type || "") === apiType;
+      return sameName && sameType;
+    });
+
+    return found?.idCategory ?? null;
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setApiError("");
+
+    const categoryId = formData.idCategory ?? resolveCategoryId(formData.cat, formData.type);
+    const payload = {
+      description: formData.desc,
+      type: normalizeTypeToApi(formData.type),
+      amount: Number(formData.amount || 0),
+      date: formData.date,
+      ...(categoryId ? { idCategory: categoryId } : {}),
+    };
+
+    try {
+      if (editingTrx) {
+        await apiRequest(`/api/transactions/${editingTrx.id}`, {
+          method: "PUT",
+          body: payload,
+        });
+      } else {
+        await apiRequest("/api/transactions", {
+          method: "POST",
+          body: payload,
+        });
+      }
+
+      await loadTransactions();
+      closeModal();
+    } catch (err) {
+      setApiError(err.message || "Failed to save transaction");
+    }
   };
 
   // Fungsi delete yang dipanggil setelah konfirmasi di modal
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (itemToDelete) {
-      setTransactions(transactions.filter(t => t.id !== itemToDelete.id));
-      setItemToDelete(null);
+      try {
+        await apiRequest(`/api/transactions/${itemToDelete.id}`, {
+          method: "DELETE",
+        });
+        await loadTransactions();
+        setItemToDelete(null);
+      } catch (err) {
+        setApiError(err.message || "Failed to delete transaction");
+      }
     }
   };
 
@@ -61,7 +150,7 @@ export default function TransactionsPage() {
     setIsModalOpen(false);
     setEditingTrx(null);
     setAddMethod(null);
-    setFormData({ desc: "", type: "Income", amount: "", cat: "", date: "2026-04-26" });
+    setFormData({ desc: "", type: "Income", amount: "", cat: "", date: today, idCategory: null });
   };
 
   // --- LOGIC FILTER ---
@@ -81,6 +170,12 @@ export default function TransactionsPage() {
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20 font-sans text-[#1A1A1A]">
       <Header name="ABP" />
+
+      {apiError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-600">
+          {apiError}
+        </div>
+      )}
 
       {/* Summary Cards */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-[#1A1A1A]">
@@ -170,7 +265,9 @@ export default function TransactionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#F6F5F1]">
-              {displayedTransactions.length > 0 ? displayedTransactions.map((trx) => (
+              {loading ? (
+                <tr><td colSpan="6" className="py-20 text-center text-[#A3A3A3] italic">Loading transactions...</td></tr>
+              ) : displayedTransactions.length > 0 ? displayedTransactions.map((trx) => (
                 <tr key={trx.id} className="hover:bg-[#FDFCFB] transition group">
                   <td className="px-6 py-6 text-sm font-medium text-[#7A746E]">{trx.date}</td>
                   <td className="px-6 py-6 text-sm font-bold">{trx.desc}</td>
@@ -247,7 +344,18 @@ export default function TransactionsPage() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Category</label>
-                    <input required value={formData.cat} onChange={(e) => setFormData({...formData, cat: e.target.value})} type="text" className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none" />
+                    <input required value={formData.cat} onChange={(e) => {
+                      const inputVal = e.target.value;
+                      const matchId = resolveCategoryId(inputVal, formData.type);
+                      setFormData({...formData, cat: inputVal, idCategory: matchId});
+                    }} type="text" list="transaction-category-options" className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none" />
+                    <datalist id="transaction-category-options">
+                      {categories
+                        .filter((cat) => String(cat.type || "") === normalizeTypeToApi(formData.type))
+                        .map((cat) => (
+                          <option key={cat.idCategory} value={cat.name} />
+                        ))}
+                    </datalist>
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Date</label>

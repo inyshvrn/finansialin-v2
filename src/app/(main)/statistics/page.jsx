@@ -1,10 +1,10 @@
 "use client";
 import React, { useState } from "react";
 import Header from "../../components/header";
-import { 
-  Download, 
-  Calendar, 
-  Layers, 
+import {
+  Download,
+  Calendar,
+  Layers,
   ChevronRight,
   CheckCircle2,
   X,
@@ -56,12 +56,12 @@ export default function StatisticsPage() {
   const handleExportAction = (format) => {
     setShowExportMenu(false);
     setExportStatus("loading");
-    
+
     // Simulasi proses export
     setTimeout(() => {
       setExportStatus("success");
       console.log(`Berhasil export data sebagai ${format}`);
-      
+
       // Kembali ke state idle setelah 2.5 detik
       setTimeout(() => setExportStatus("idle"), 2500);
     }, 1500);
@@ -92,23 +92,22 @@ export default function StatisticsPage() {
         </div>
 
         <div className="flex gap-3 w-full md:w-auto h-[52px]">
-          <button 
+          <button
             onClick={() => setShowRangeModal(true)}
             className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 h-full bg-white border border-[#E8E2D9] rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-[#F6F5F1] hover:border-[#A3A3A3] active:scale-95 transition-all shadow-sm"
           >
             <Calendar size={14} /> {activeRange}
           </button>
-          
+
           {/* Export Button UX Berubah */}
           <div className="relative flex-1 md:flex-none h-full">
-            <button 
+            <button
               onClick={() => exportStatus === "idle" && setShowExportMenu(!showExportMenu)}
               disabled={exportStatus !== "idle"}
-              className={`w-full h-full flex items-center justify-center gap-2 px-6 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all duration-300 ${
-                exportStatus === "success" 
-                ? "bg-green-500 text-white border border-green-500" 
-                : "bg-[#1A1A1A] text-[#FFD600] border border-[#1A1A1A] hover:bg-black active:scale-95 disabled:opacity-80"
-              }`}
+              className={`w-full h-full flex items-center justify-center gap-2 px-6 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all duration-300 ${exportStatus === "success"
+                  ? "bg-green-500 text-white border border-green-500"
+                  : "bg-[#1A1A1A] text-[#FFD600] border border-[#1A1A1A] hover:bg-black active:scale-95 disabled:opacity-80"
+                }`}
             >
               {exportStatus === "idle" && <><Download size={14} /> Export</>}
               {exportStatus === "loading" && <><div className="w-4 h-4 border-2 border-[#FFD600] border-t-transparent rounded-full animate-spin" /> Wait</>}
@@ -120,13 +119,13 @@ export default function StatisticsPage() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowExportMenu(false)}></div>
                 <div className="absolute right-0 mt-3 w-48 bg-white rounded-2xl border border-[#E8E2D9] shadow-2xl py-2 z-50 animate-in fade-in zoom-in duration-200">
-                  <button 
+                  <button
                     onClick={() => handleExportAction('PDF')}
                     className="w-full flex items-center gap-3 px-5 py-3 text-[11px] font-black text-[#1A1A1A] uppercase tracking-widest hover:bg-[#F6F5F1] transition-colors"
                   >
                     <FileText size={16} className="text-[#FFD600]" /> As PDF
                   </button>
-                  <button 
+                  <button
                     onClick={() => handleExportAction('CSV')}
                     className="w-full flex items-center gap-3 px-5 py-3 text-[11px] font-black text-[#1A1A1A] uppercase tracking-widest hover:bg-[#F6F5F1] transition-colors"
                   >
@@ -141,10 +140,10 @@ export default function StatisticsPage() {
 
       {/* --- MAIN ANALYTICAL GRID --- */}
       <div className="grid grid-cols-12 gap-8">
-        
+
         {/* === LEFT SIDE (8 Columns) === */}
         <div className="col-span-12 lg:col-span-8 space-y-8">
-          
+
           {/* 1. Cash Flow & Trend Chart */}
           <div className="bg-[#FDFCFB] p-8 rounded-[40px] border border-[#E8E2D9] shadow-sm relative overflow-hidden h-[450px] group">
             <div className="absolute inset-0 opacity-[0.02] pointer-events-none" style={{ backgroundImage: 'linear-gradient(#1A1A1A 1px, transparent 1px), linear-gradient(90deg, #1A1A1A 1px, transparent 1px)', backgroundSize: '40px 40px' }}></div>
@@ -156,7 +155,7 @@ export default function StatisticsPage() {
                   {hoveredMonth !== null ? `Data for ${chartData[hoveredMonth].month}: ${chartData[hoveredMonth].val}` : "Hover chart to see details"}
                 </p>
               </div>
-              
+
               <div className="flex items-center gap-5 bg-white p-3 rounded-2xl border border-[#E8E2D9] shadow-sm">
                 <div className="text-right">
                   <p className="flex items-center justify-end gap-1.5 text-[9px] font-black uppercase tracking-widest text-[#A3A3A3] mb-1">
@@ -183,8 +182,8 @@ export default function StatisticsPage() {
 
             <div className="absolute inset-x-8 bottom-12 h-64 flex justify-between z-20">
               {chartData.map((data, i) => (
-                <div 
-                  key={i} 
+                <div
+                  key={i}
                   className="flex-1 h-full flex justify-center group/col cursor-crosshair"
                   onMouseEnter={() => setHoveredMonth(i)}
                   onMouseLeave={() => setHoveredMonth(null)}
@@ -207,33 +206,33 @@ export default function StatisticsPage() {
 
           {/* 2. Asset Allocation - Ditambahkan Fungsi Klik */}
           <div className="bg-white border border-[#E8E2D9] p-10 rounded-[40px] shadow-sm relative overflow-hidden group">
-             <PieChart className="absolute -right-12 -bottom-12 opacity-[0.03] text-[#1A1A1A] group-hover:rotate-12 transition-transform duration-1000 pointer-events-none" size={240} />
-             
-             <div className="flex justify-between items-center mb-10 relative z-10">
-               <div className="flex items-center gap-4">
-                 <div className="w-12 h-12 bg-[#1A1A1A] rounded-2xl flex items-center justify-center text-[#FFD600] shadow-lg">
-                   <Layers size={22} />
-                 </div>
-                 <div>
-                   <h3 className="font-black text-lg tracking-tighter text-[#1A1A1A]">Asset Allocation</h3>
-                   <p className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Capital Distribution Strategy</p>
-                 </div>
-               </div>
-               {/* Tombol Portfolio Manage yang Aktif */}
-               <button 
-                 onClick={() => setShowPortfolioModal(true)}
-                 className="px-4 py-2 bg-[#F6F5F1] rounded-xl text-[10px] font-black text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-[#FFD600] flex items-center gap-1.5 transition-colors uppercase tracking-widest active:scale-95 shadow-sm"
-               >
-                 Portfolio Manage <ChevronRight size={14} />
-               </button>
-             </div>
+            <PieChart className="absolute -right-12 -bottom-12 opacity-[0.03] text-[#1A1A1A] group-hover:rotate-12 transition-transform duration-1000 pointer-events-none" size={240} />
 
-             <div className="grid grid-cols-1 md:grid-cols-3 gap-10 relative z-10">
-               {/* Values are now dynamic from state */}
-               <AllocationItem label="Liquid Cash" percent={allocations.liquid} color="#1A1A1A" amount="Rp 15.9M" />
-               <AllocationItem label="Investments" percent={allocations.investments} color="#FFD600" amount="Rp 6.1M" />
-               <AllocationItem label="Emergency Fund" percent={allocations.emergency} color="#E8E2D9" amount="Rp 2.5M" />
-             </div>
+            <div className="flex justify-between items-center mb-10 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-[#1A1A1A] rounded-2xl flex items-center justify-center text-[#FFD600] shadow-lg">
+                  <Layers size={22} />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg tracking-tighter text-[#1A1A1A]">Asset Allocation</h3>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Capital Distribution Strategy</p>
+                </div>
+              </div>
+              {/* Tombol Portfolio Manage yang Aktif */}
+              <button
+                onClick={() => setShowPortfolioModal(true)}
+                className="px-4 py-2 bg-[#F6F5F1] rounded-xl text-[10px] font-black text-[#1A1A1A] hover:bg-[#1A1A1A] hover:text-[#FFD600] flex items-center gap-1.5 transition-colors uppercase tracking-widest active:scale-95 shadow-sm"
+              >
+                Portfolio Manage <ChevronRight size={14} />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10 relative z-10">
+              {/* Values are now dynamic from state */}
+              <AllocationItem label="Liquid Cash" percent={allocations.liquid} color="#1A1A1A" amount="Rp 15.9M" />
+              <AllocationItem label="Investments" percent={allocations.investments} color="#FFD600" amount="Rp 6.1M" />
+              <AllocationItem label="Emergency Fund" percent={allocations.emergency} color="#E8E2D9" amount="Rp 2.5M" />
+            </div>
           </div>
 
           {/* 3. Top Spending Categories */}
@@ -242,15 +241,15 @@ export default function StatisticsPage() {
               <h3 className="font-black text-sm uppercase tracking-tighter text-[#1A1A1A]">Top Spending Categories</h3>
               <p className="text-[10px] font-black bg-[#F6F5F1] px-3 py-1 rounded text-[#1A1A1A] tracking-widest uppercase">April Insight</p>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-6">
-                <TopSpendBar icon={<CreditCard size={14}/>} label="Food & Dining" amount="Rp 2.4M" percent={40} color="#FFD600" />
-                <TopSpendBar icon={<TrendingUp size={14}/>} label="Investments" amount="Rp 1.5M" percent={25} color="#1A1A1A" />
+                <TopSpendBar icon={<CreditCard size={14} />} label="Food & Dining" amount="Rp 2.4M" percent={40} color="#FFD600" />
+                <TopSpendBar icon={<TrendingUp size={14} />} label="Investments" amount="Rp 1.5M" percent={25} color="#1A1A1A" />
               </div>
               <div className="space-y-6">
-                <TopSpendBar icon={<Activity size={14}/>} label="Self Care" amount="Rp 1.2M" percent={20} color="#1A1A1A" />
-                <TopSpendBar icon={<Layers size={14}/>} label="Others" amount="Rp 900K" percent={15} color="#E8E2D9" />
+                <TopSpendBar icon={<Activity size={14} />} label="Self Care" amount="Rp 1.2M" percent={20} color="#1A1A1A" />
+                <TopSpendBar icon={<Layers size={14} />} label="Others" amount="Rp 900K" percent={15} color="#E8E2D9" />
               </div>
             </div>
           </div>
@@ -258,11 +257,11 @@ export default function StatisticsPage() {
 
         {/* === RIGHT SIDE (4 Columns) === */}
         <div className="col-span-12 lg:col-span-4 space-y-6">
-          
+
           {/* 4. Financial Health Score & AI Insight */}
           <div className="bg-[#1A1A1A] p-8 rounded-[40px] shadow-xl relative overflow-hidden group hover:-translate-y-1 transition-transform duration-300">
             <div className="absolute -right-10 -top-10 w-48 h-48 bg-[#FFD600] rounded-full opacity-[0.03] blur-2xl group-hover:opacity-[0.08] transition-opacity duration-700 pointer-events-none"></div>
-            
+
             <div className="relative z-10">
               <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-2">
@@ -274,7 +273,7 @@ export default function StatisticsPage() {
                   <p className="text-[9px] font-black uppercase tracking-widest text-green-400 mt-1">Excellent</p>
                 </div>
               </div>
-              
+
               <div className="w-full h-px bg-white/10 mb-6"></div>
 
               <p className="text-sm font-medium leading-relaxed mb-8 text-[#A3A3A3]">
@@ -300,7 +299,7 @@ export default function StatisticsPage() {
           </div>
 
           {/* 6. Download Statement UX Button */}
-          <button 
+          <button
             onClick={handleDownloadPdf}
             disabled={isDownloadingPdf}
             className="w-full flex items-center justify-between p-6 bg-[#FDFCFB] rounded-[32px] border-2 border-dashed border-[#E8E2D9] hover:border-[#FFD600] hover:bg-[#FFFDF5] active:scale-[0.98] group transition-all mt-4"
@@ -347,10 +346,10 @@ export default function StatisticsPage() {
       {showPortfolioModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-in fade-in duration-300">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowPortfolioModal(false)}></div>
-          
+
           <div className="bg-white w-full max-w-md rounded-[32px] p-8 shadow-2xl relative border border-[#E8E2D9] animate-in zoom-in-95 duration-300">
-            <button 
-              onClick={() => setShowPortfolioModal(false)} 
+            <button
+              onClick={() => setShowPortfolioModal(false)}
               className="absolute right-6 top-6 p-2 text-[#A3A3A3] hover:text-[#1A1A1A] hover:bg-[#F6F5F1] rounded-full transition-all"
             >
               <X size={20} />
@@ -367,45 +366,45 @@ export default function StatisticsPage() {
               {/* Input Liquid Cash */}
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Liquid Cash (%)</label>
-                   <span className="w-2.5 h-2.5 bg-[#1A1A1A] rounded-full"></span>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Liquid Cash (%)</label>
+                  <span className="w-2.5 h-2.5 bg-[#1A1A1A] rounded-full"></span>
                 </div>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={allocations.liquid}
-                  onChange={(e) => setAllocations({...allocations, liquid: e.target.value})}
-                  className="w-full h-12 px-5 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all" 
+                  onChange={(e) => setAllocations({ ...allocations, liquid: e.target.value })}
+                  className="w-full h-12 px-5 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all"
                 />
               </div>
 
               {/* Input Investments */}
               <div className="space-y-2">
-                 <div className="flex justify-between items-center">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Investments (%)</label>
-                   <span className="w-2.5 h-2.5 bg-[#FFD600] rounded-full"></span>
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Investments (%)</label>
+                  <span className="w-2.5 h-2.5 bg-[#FFD600] rounded-full"></span>
                 </div>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={allocations.investments}
-                  onChange={(e) => setAllocations({...allocations, investments: e.target.value})}
-                  className="w-full h-12 px-5 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all" 
+                  onChange={(e) => setAllocations({ ...allocations, investments: e.target.value })}
+                  className="w-full h-12 px-5 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all"
                 />
               </div>
 
               {/* Input Emergency Fund */}
               <div className="space-y-2">
-                 <div className="flex justify-between items-center">
-                   <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Emergency Fund (%)</label>
-                   <span className="w-2.5 h-2.5 bg-[#E8E2D9] rounded-full border border-[#A3A3A3]"></span>
+                <div className="flex justify-between items-center">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Emergency Fund (%)</label>
+                  <span className="w-2.5 h-2.5 bg-[#E8E2D9] rounded-full border border-[#A3A3A3]"></span>
                 </div>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={allocations.emergency}
-                  onChange={(e) => setAllocations({...allocations, emergency: e.target.value})}
-                  className="w-full h-12 px-5 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all" 
+                  onChange={(e) => setAllocations({ ...allocations, emergency: e.target.value })}
+                  className="w-full h-12 px-5 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all"
                 />
               </div>
-              
+
               {/* Validation Feedback */}
               <div className={`p-4 rounded-xl flex items-center justify-between border ${totalAllocation === 100 ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
                 <span className="text-[10px] font-black uppercase tracking-widest text-[#1A1A1A]">Total Allocation:</span>
@@ -415,14 +414,14 @@ export default function StatisticsPage() {
               </div>
 
               <div className="flex gap-4 pt-2">
-                <button 
-                  onClick={() => setShowPortfolioModal(false)} 
+                <button
+                  onClick={() => setShowPortfolioModal(false)}
                   className="flex-1 h-[52px] flex items-center justify-center bg-white border border-[#E8E2D9] text-[#1A1A1A] rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-[#F6F5F1] transition-all"
                 >
                   Batal
                 </button>
-                <button 
-                  onClick={handleSavePortfolio} 
+                <button
+                  onClick={handleSavePortfolio}
                   disabled={totalAllocation !== 100}
                   className="flex-[2] h-[52px] flex items-center justify-center bg-[#1A1A1A] text-[#FFD600] border border-[#1A1A1A] rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg hover:bg-black active:scale-95 disabled:opacity-50 transition-all"
                 >
@@ -444,8 +443,8 @@ function AllocationItem({ label, percent, color, amount }) {
     <div className="space-y-4 group cursor-default">
       <div className="flex justify-between items-end">
         <div>
-           <p className="text-xs font-black text-[#1A1A1A]">{label}</p>
-           <p className="text-lg font-black tracking-tighter mt-0.5">{amount}</p>
+          <p className="text-xs font-black text-[#1A1A1A]">{label}</p>
+          <p className="text-lg font-black tracking-tighter mt-0.5">{amount}</p>
         </div>
         <p className="text-sm font-black opacity-40">{percent}%</p>
       </div>

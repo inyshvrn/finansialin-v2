@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Search, 
@@ -13,6 +13,7 @@ import {
   Briefcase,
   GraduationCap
 } from 'lucide-react';
+import { apiRequest } from '@/lib/api';
 
 const Header = () => {
   const router = useRouter();
@@ -27,13 +28,47 @@ const Header = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Data User
-  const userData = {
-    name: "Muhammad Furqan Maulidi",
-    email: "frqmld@student.telkomuniversity.ac.id",
-    role: "Informatics Student",
-    bio: "Head of Cadreization Department. Fokus pada pengembangan web dan riset Machine Learning.",
-    avatar: "M"
-  };
+  const [userData, setUserData] = useState({
+    name: "User",
+    email: "-",
+    role: "Finansialin User",
+    bio: "Kelola transaksi dan budget kamu lebih rapi setiap hari.",
+    avatar: "U",
+  });
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const profile = await apiRequest('/api/auth/profile');
+        const name = profile?.name || 'User';
+
+        setUserData((prev) => ({
+          ...prev,
+          name,
+          email: profile?.email || '-',
+          avatar: name.charAt(0).toUpperCase() || 'U',
+        }));
+      } catch {
+        const localUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+        if (localUser) {
+          try {
+            const parsed = JSON.parse(localUser);
+            const name = parsed?.name || 'User';
+            setUserData((prev) => ({
+              ...prev,
+              name,
+              email: parsed?.email || '-',
+              avatar: name.charAt(0).toUpperCase() || 'U',
+            }));
+          } catch {
+            // Ignore invalid local storage payload.
+          }
+        }
+      }
+    };
+
+    loadProfile();
+  }, []);
 
   // --- ACTIONS ---
 
@@ -49,9 +84,26 @@ const Header = () => {
 
   const handleLogout = () => {
     setIsLoggingOut(true);
-    setTimeout(() => {
-      router.push('/'); 
-    }, 1500);
+
+    const doLogout = async () => {
+      try {
+        await apiRequest('/api/auth/logout', { method: 'POST' });
+      } catch {
+        // Continue with local logout fallback.
+      } finally {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('access_token');
+          localStorage.removeItem('refresh_token');
+          localStorage.removeItem('user');
+        }
+
+        setTimeout(() => {
+          router.push('/login');
+        }, 300);
+      }
+    };
+
+    doLogout();
   };
 
   return (

@@ -1,6 +1,7 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Header from "../../components/header";
+import { apiRequest } from "@/lib/api";
 import { 
   Plus, 
   Target, 
@@ -15,10 +16,14 @@ import {
 export default function BudgetingPage() {
   const [filter, setFilter] = useState("Active");
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [apiError, setApiError] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [budgetData, setBudgetData] = useState([]);
   
   // State untuk Modal Adjust Budget
   const [showAdjust, setShowAdjust] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedBudget, setSelectedBudget] = useState(null);
   const [adjustAmount, setAdjustAmount] = useState("");
 
   // State untuk Modal Add Budget (Baru)
@@ -26,12 +31,86 @@ export default function BudgetingPage() {
   const [newCategory, setNewCategory] = useState("");
   const [newLimit, setNewLimit] = useState("");
 
-  const budgetData = [
-    { id: 1, label: "Food & Dining", spent: "Rp 1.800.000", limit: "Rp 2.000.000", percent: 90, daysLeft: "4", status: "Active", isWarning: true },
-    { id: 2, label: "Transportation", spent: "Rp 400.000", limit: "Rp 1.500.000", percent: 26, daysLeft: "4", status: "Active", isWarning: false },
-    { id: 3, label: "Self Care", spent: "Rp 1.500.000", limit: "Rp 1.500.000", percent: 100, daysLeft: "0", status: "Completed", isWarning: false },
-    { id: 4, label: "Entertainment", spent: "Rp 1.200.000", limit: "Rp 1.000.000", percent: 120, daysLeft: "4", status: "Overlimit", isWarning: true },
-  ];
+  const formatCurrency = (value) => `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
+
+  const daysLeftUntil = (dateStr) => {
+    if (!dateStr) {
+      return 0;
+    }
+
+    const target = new Date(String(dateStr).slice(0, 10));
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    target.setHours(0, 0, 0, 0);
+
+    const diff = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  };
+
+  const computeStatus = (percent) => {
+    if (percent > 100) {
+      return "Overlimit";
+    }
+    if (percent === 100) {
+      return "Completed";
+    }
+    return "Active";
+  };
+
+  const loadBudgets = async () => {
+    setLoading(true);
+    setApiError("");
+
+    try {
+      const [budgets, categoryData] = await Promise.all([
+        apiRequest("/api/budgets"),
+        apiRequest("/api/categories"),
+      ]);
+
+      const categoryMap = new Map((categoryData || []).map((cat) => [cat.idCategory, cat.name]));
+      setCategories(categoryData || []);
+
+      const usageData = await Promise.all(
+        (budgets || []).map(async (budget) => {
+          const usage = await apiRequest(`/api/budgets/${budget.idBudget}/usage`);
+          return { idBudget: budget.idBudget, usage };
+        })
+      );
+
+      const usageMap = new Map(usageData.map((item) => [item.idBudget, item.usage]));
+
+      const mapped = (budgets || []).map((budget) => {
+        const usage = usageMap.get(budget.idBudget) || { used: 0, percent: 0 };
+        const percent = Math.round(Number(usage.percent || 0));
+        const label = budget.idCategory ? (categoryMap.get(budget.idCategory) || "Unknown") : "Uncategorized";
+
+        return {
+          id: budget.idBudget,
+          idBudget: budget.idBudget,
+          idCategory: budget.idCategory,
+          label,
+          spent: formatCurrency(usage.used),
+          limit: formatCurrency(budget.amount),
+          amountRaw: Number(budget.amount || 0),
+          percent,
+          daysLeft: String(daysLeftUntil(budget.periodEnd)),
+          status: computeStatus(percent),
+          isWarning: percent >= 80,
+        };
+      });
+
+      setBudgetData(mapped);
+    } catch (err) {
+      setApiError(err.message || "Gagal memuat budget");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadBudgets();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filteredData = budgetData.filter((item) => {
     const matchesSearch = item.label.toLowerCase().includes(searchQuery.toLowerCase());
@@ -41,27 +120,76 @@ export default function BudgetingPage() {
 
   // Action Handlers
   const openAdjust = (cat) => {
-    setSelectedCategory(cat);
+    setSelectedBudget(cat);
     setAdjustAmount("");
     setShowAdjust(true);
   };
 
-  const handleSaveAdjust = () => {
-    console.log(`Menyimpan limit baru untuk ${selectedCategory}: Rp ${adjustAmount}`);
-    setShowAdjust(false);
+  const handleSaveAdjust = async () => {
+    if (!selectedBudget || !adjustAmount) {
+      return;
+    }
+
+    try {
+      await apiRequest(`/api/budgets/${selectedBudget.idBudget}`, {
+        method: "PUT",
+        body: {
+          amount: Number(adjustAmount),
+        },
+      });
+
+      await loadBudgets();
+      setShowAdjust(false);
+      setSelectedBudget(null);
+    } catch (err) {
+      setApiError(err.message || "Gagal update budget");
+    }
   };
 
-  const handleAddBudget = () => {
-    console.log(`Membuat anggaran baru: ${newCategory} dengan limit Rp ${newLimit}`);
-    // Reset form setelah disave
-    setNewCategory("");
-    setNewLimit("");
-    setShowAddBudget(false);
+  const handleAddBudget = async () => {
+    const category = categories.find(
+      (cat) => String(cat.name || "").trim().toLowerCase() === newCategory.trim().toLowerCase() && String(cat.type || "") === "expense"
+    );
+
+    if (!category) {
+      setApiError("Kategori tidak ditemukan. Pakai nama kategori expense yang valid.");
+      return;
+    }
+
+    try {
+      const now = new Date();
+      const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
+
+      await apiRequest("/api/budgets", {
+        method: "POST",
+        body: {
+          idCategory: category.idCategory,
+          period: "monthly",
+          periodStart,
+          periodEnd,
+          amount: Number(newLimit),
+        },
+      });
+
+      await loadBudgets();
+      setNewCategory("");
+      setNewLimit("");
+      setShowAddBudget(false);
+    } catch (err) {
+      setApiError(err.message || "Gagal membuat budget");
+    }
   };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-20 relative">
       <Header />
+
+      {apiError && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-bold text-red-600">
+          {apiError}
+        </div>
+      )}
 
       {/* --- HERO SECTION --- */}
       <section className="bg-[#1A1A1A] rounded-[32px] p-8 text-white relative overflow-hidden shadow-lg">
@@ -126,8 +254,12 @@ export default function BudgetingPage() {
 
       {/* --- BUDGET GRID --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredData.length > 0 ? (
-          filteredData.map((budget) => <CategoryCard key={budget.id} {...budget} onAdjust={() => openAdjust(budget.label)} />)
+        {loading ? (
+          <div className="col-span-full py-24 flex flex-col items-center justify-center border-2 border-dashed border-[#E8E2D9] rounded-[32px] bg-white">
+            <p className="text-[#A3A3A3] text-sm font-bold">Loading budgets...</p>
+          </div>
+        ) : filteredData.length > 0 ? (
+          filteredData.map((budget) => <CategoryCard key={budget.id} {...budget} onAdjust={() => openAdjust(budget)} />)
         ) : (
           <div className="col-span-full py-24 flex flex-col items-center justify-center border-2 border-dashed border-[#E8E2D9] rounded-[32px] bg-white">
             <div className="w-16 h-16 bg-[#F6F5F1] rounded-full flex items-center justify-center mb-4 text-[#A3A3A3]">
@@ -169,9 +301,17 @@ export default function BudgetingPage() {
                   type="text" 
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value)}
+                  list="budget-category-options"
                   placeholder="Contoh: Belanja Bulanan" 
                   className="w-full h-14 px-6 bg-[#F6F5F1] rounded-2xl border border-[#E8E2D9] font-bold text-[#1A1A1A] outline-none focus:border-[#FFD600] focus:bg-white transition-all" 
                 />
+                <datalist id="budget-category-options">
+                  {categories
+                    .filter((cat) => String(cat.type || "") === "expense")
+                    .map((cat) => (
+                      <option key={cat.idCategory} value={cat.name} />
+                    ))}
+                </datalist>
               </div>
 
               {/* Input Limit Nominal */}
@@ -225,7 +365,7 @@ export default function BudgetingPage() {
             <div className="mb-8">
               <h3 className="text-2xl font-black tracking-tighter text-[#1A1A1A] mb-2">Adjust Budget</h3>
               <p className="text-sm text-[#7A746E] font-medium leading-relaxed">
-                Sesuaikan limit anggaran bulanan untuk kategori <span className="text-[#1A1A1A] font-bold px-2 py-0.5 bg-[#F6F5F1] rounded-md">{selectedCategory}</span>
+                Sesuaikan limit anggaran bulanan untuk kategori <span className="text-[#1A1A1A] font-bold px-2 py-0.5 bg-[#F6F5F1] rounded-md">{selectedBudget?.label}</span>
               </p>
             </div>
 

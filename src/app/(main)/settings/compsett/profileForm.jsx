@@ -1,12 +1,14 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { Lock, Check, Upload, Trash2 } from "lucide-react";
 import { Icon } from "@iconify/react";
+import { apiRequest } from "@/lib/api";
 
 export default function ProfileForm() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [error, setError] = useState("");
 
   // UX State untuk Foto Profil
   const [profileImage, setProfileImage] = useState("/profile-user.jpg");
@@ -15,12 +17,35 @@ export default function ProfileForm() {
 
   // State untuk form
   const [formData, setFormData] = useState({
-    firstName: "Zafira",
-    lastName: "Noerr",
-    email: "ZafiraNackKeche@gmail.com",
+    firstName: "",
+    lastName: "",
+    email: "",
     occupation: "Student",
     bio: "Target: Hemat buat beli MacBook Air M3"
   });
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const data = await apiRequest("/api/auth/profile");
+        const fullName = (data?.name || "").trim();
+        const parts = fullName.split(/\s+/).filter(Boolean);
+        const firstName = parts.shift() || "";
+        const lastName = parts.join(" ");
+
+        setFormData((prev) => ({
+          ...prev,
+          firstName,
+          lastName,
+          email: data?.email || "",
+        }));
+      } catch (err) {
+        setError(err.message || "Gagal memuat profil");
+      }
+    };
+
+    loadProfile();
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -46,15 +71,29 @@ export default function ProfileForm() {
   const handleSaveProfile = (e) => {
     e.preventDefault(); 
     setIsSaving(true);
-    
-    setTimeout(() => {
-      setIsSaving(false);
-      setIsSuccess(true);
-      console.log("Data Profil Baru:", formData);
-      console.log("Foto Profil Baru:", profileImage);
-      
-      setTimeout(() => setIsSuccess(false), 3000);
-    }, 1500);
+    setError("");
+
+    const saveProfile = async () => {
+      try {
+        const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+        await apiRequest("/api/users/profile", {
+          method: "PUT",
+          body: {
+            name: fullName,
+            email: formData.email,
+          },
+        });
+
+        setIsSuccess(true);
+        setTimeout(() => setIsSuccess(false), 3000);
+      } catch (err) {
+        setError(err.message || "Gagal menyimpan profil");
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    saveProfile();
   };
 
   return (
@@ -165,12 +204,18 @@ export default function ProfileForm() {
                 type="email" 
                 name="email"
                 value={formData.email}
-                className="w-full h-[56px] px-6 pr-14 rounded-[15px] border border-[#9CA3AF] bg-gray-50 text-gray-500 outline-none cursor-not-allowed transition-all"
-                disabled 
+                onChange={handleChange}
+                className="w-full h-[56px] px-6 pr-14 rounded-[15px] border border-[#9CA3AF] bg-white outline-none focus:border-[#F5CA1C] focus:ring-1 focus:ring-[#F5CA1C] transition-all"
               />
               <Lock className="absolute right-6 top-1/2 -translate-y-1/2 text-[#9CA3AF]" size={20} />
             </div>
           </div>
+
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+              {error}
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-[16px] text-black font-normal opacity-80 ml-1">Occupation</label>

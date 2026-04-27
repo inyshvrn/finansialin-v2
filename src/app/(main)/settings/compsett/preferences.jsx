@@ -1,25 +1,96 @@
 "use client";
-import React, { useState } from "react";
-import { Check } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Check, AlertCircle } from "lucide-react";
+import { apiRequest } from "@/lib/api";
 
 export default function Preferences() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [preferences, setPreferences] = useState({
+    theme: "light",
+    hideBalance: false,
+    dailyReminder: true,
+    budgetAlert: true,
+    weeklySummary: true,
+  });
 
-  // Simulasi Menyimpan Pengaturan
+  // Load preferences dari backend
+  useEffect(() => {
+    const loadPreferences = async () => {
+      setLoading(true);
+      try {
+        const data = await apiRequest("/api/users/preferences");
+        // Map API response ke state
+        setPreferences({
+          theme: data?.theme || "light",
+          hideBalance: data?.hideBalance || false,
+          dailyReminder: data?.dailyReminder !== false,
+          budgetAlert: data?.budgetAlert !== false,
+          weeklySummary: data?.weeklySummary !== false,
+        });
+      } catch (err) {
+        setError(err.message || "Gagal memuat preferensi");
+        console.error("Preferences error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadPreferences();
+  }, []);
+
+  // Simpan preferences ke backend
   const handleApplySettings = (e) => {
     e.preventDefault();
     setIsSaving(true);
-    
-    setTimeout(() => {
-      setIsSaving(false);
-      setIsSuccess(true);
-      console.log("Pengaturan Display & Notifikasi berhasil disimpan.");
-      
-      // Kembali ke state normal setelah 3 detik
-      setTimeout(() => setIsSuccess(false), 3000);
-    }, 1500);
+    setError("");
+
+    const savePreferences = async () => {
+      try {
+        await apiRequest("/api/users/preferences", {
+          method: "PUT",
+          body: {
+            theme: preferences.theme,
+            hideBalance: preferences.hideBalance,
+            dailyReminder: preferences.dailyReminder,
+            budgetAlert: preferences.budgetAlert,
+            weeklySummary: preferences.weeklySummary,
+          },
+        });
+
+        setIsSuccess(true);
+        setTimeout(() => setIsSuccess(false), 3000);
+      } catch (err) {
+        setError(err.message || "Gagal menyimpan pengaturan");
+      } finally {
+        setIsSaving(false);
+      }
+    };
+
+    savePreferences();
   };
+
+  if (loading) {
+    return (
+      <div className="w-full flex items-center justify-center py-20">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#FFD600]"></div>
+      </div>
+    );
+  }
+
+  if (error && !isSaving) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+        <AlertCircle className="text-red-600" size={20} />
+        <div>
+          <h4 className="font-bold text-red-600">Error</h4>
+          <p className="text-sm text-red-500">{error}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleApplySettings} className="w-full animate-in slide-in-from-bottom-4 duration-700 space-y-12">
@@ -40,9 +111,21 @@ export default function Preferences() {
             </div>
             
             <div className="flex flex-wrap gap-6 pt-2">
-              <ThemeOption label="Light Mode" active />
-              <ThemeOption label="Dark Mode" />
-              <ThemeOption label="System Default" />
+              <ThemeOption 
+                label="Light Mode" 
+                active={preferences.theme === 'light'}
+                onClick={() => setPreferences({...preferences, theme: 'light'})}
+              />
+              <ThemeOption 
+                label="Dark Mode"
+                active={preferences.theme === 'dark'}
+                onClick={() => setPreferences({...preferences, theme: 'dark'})}
+              />
+              <ThemeOption 
+                label="System Default"
+                active={preferences.theme === 'system'}
+                onClick={() => setPreferences({...preferences, theme: 'system'})}
+              />
             </div>
           </div>
 
@@ -54,7 +137,10 @@ export default function Preferences() {
               <h4 className="text-[16px] font-bold text-black">Privasi Saldo</h4>
               <p className="text-sm text-[#7A746E]">Sembunyikan total saldo Anda secara otomatis saat aplikasi dibuka</p>
             </div>
-            <Toggle />
+            <Toggle 
+              active={preferences.hideBalance}
+              onChange={(checked) => setPreferences({...preferences, hideBalance: checked})}
+            />
           </div>
         </div>
       </section>
@@ -71,17 +157,21 @@ export default function Preferences() {
         <div className="flex-1 space-y-8">
           <NotificationItem 
             title="Daily Reminder" 
-            desc="Terima pengingat setiap malam untuk mencatat pengeluaran harian Anda agar tidak lupa." 
-            active
+            desc="Terima pengingat setiap malam untuk mencatat pengeluaran harian Anda agar tidak lupa."
+            active={preferences.dailyReminder}
+            onChange={(checked) => setPreferences({...preferences, dailyReminder: checked})}
           />
           <NotificationItem 
             title="Budget Limit Alert" 
-            desc="Dapatkan notifikasi saat pengeluaran Anda mencapai 80% dari batas anggaran bulanan." 
+            desc="Dapatkan notifikasi saat pengeluaran Anda mencapai 80% dari batas anggaran bulanan."
+            active={preferences.budgetAlert}
+            onChange={(checked) => setPreferences({...preferences, budgetAlert: checked})}
           />
           <NotificationItem 
             title="Weekly Financial Summary" 
-            desc="Terima laporan ringkasan kesehatan finansial Anda setiap hari Minggu sore." 
-            active
+            desc="Terima laporan ringkasan kesehatan finansial Anda setiap hari Minggu sore."
+            active={preferences.weeklySummary}
+            onChange={(checked) => setPreferences({...preferences, weeklySummary: checked})}
           />
         </div>
       </section>
@@ -108,9 +198,9 @@ export default function Preferences() {
 
 // --- Sub-components ---
 
-function ThemeOption({ label, active }) {
+function ThemeOption({ label, active, onClick }) {
   return (
-    <div className="flex flex-col items-center gap-3 group cursor-pointer">
+    <div className="flex flex-col items-center gap-3 group cursor-pointer" onClick={onClick}>
       <div className={`w-[160px] h-[100px] rounded-[15px] border-2 transition-all duration-300 ${
         active 
         ? "border-[#FFD600] bg-[#FFD600]/5 shadow-md" 
@@ -127,21 +217,20 @@ function ThemeOption({ label, active }) {
   );
 }
 
-function Toggle({ defaultChecked = false }) {
-  const [enabled, setEnabled] = useState(defaultChecked);
+function Toggle({ active = false, onChange }) {
   return (
     <label className="relative inline-flex items-center cursor-pointer">
       <input 
         type="checkbox" 
         className="sr-only peer" 
-        checked={enabled}
-        onChange={() => setEnabled(!enabled)} 
+        checked={active}
+        onChange={(e) => onChange && onChange(e.target.checked)} 
       />
       <div className={`
         w-[52px] h-[28px] rounded-full transition-all duration-300
         after:content-[''] after:absolute after:top-[4px] after:left-[4px] 
         after:bg-white after:rounded-full after:h-[20px] after:w-[20px] after:transition-all
-        ${enabled 
+        ${active 
           ? "bg-[#FFD600] after:translate-x-[24px] shadow-sm" 
           : "bg-[#E8E2D9] after:translate-x-0"
         }
@@ -150,14 +239,14 @@ function Toggle({ defaultChecked = false }) {
   );
 }
 
-function NotificationItem({ title, desc, active }) {
+function NotificationItem({ title, desc, active, onChange }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-[#F6F5F1] last:border-0">
       <div className="space-y-1 pr-10">
         <h4 className="text-[16px] font-bold text-black">{title}</h4>
         <p className="text-sm text-[#7A746E] leading-relaxed max-w-[550px]">{desc}</p>
       </div>
-      <Toggle defaultChecked={active} />
+      <Toggle active={active} onChange={onChange} />
     </div>
   );
 }
