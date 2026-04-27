@@ -1,0 +1,257 @@
+/* Tighten input spacing */
+.register-form input {
+  margin-bottom: 6px;
+}
+
+.password-wrapper input {
+  margin-bottom: 6px;
+}
+
+
+/* ===== KEYFRAME ANIMATIONS LOGIN ===== */
+@keyframes loginSlideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes loginSlideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes loginFadeInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ===== RESET & BASE ===== */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #1A252B;
+}
+
+.login-page {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  font-family: "Poppins", sans-serif;
+    overflow: hidden;
+    position: relative;
+    padding: 24px;
+    gap: 20px;
+    background:
+        radial-gradient(48% 46% at 8% 8%, #FFC107 0%, #FFB300 56%, transparent 57%),
+        radial-gradient(42% 38% at 54% 110%, #FFC107 0%, #FFC107 54%, transparent 55%),
+        linear-gradient(145deg, #2F3E46 0%, #1F292E 52%, #1A252B 100%);
+    position: relative;
+}
+
+/* ===== PANEL KIRI (WELCOME - DARK) ===== */
+.login-left {
+  flex: 1;
+  background-color: #2F3E46 !important; /* Charcoal Moodboard */
+  color: #ffffff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 0 60px;
+  position: relative;
+  border-radius: 0; 
+  animation: loginSlideInLeft 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.auth-illustration-wrap {
+    width: 124px;
+    height: 124px;
+    border-radius: 50% !important; /* Pastikan bulat */
+    display: grid;
+    place-items: center;
+    margin-bottom: 18px;
+    
+    /* RESET BAGIAN INI: */
+    background: transparent !important; /* Hapus warna abu-abu transparan */
+    border: none !important;            /* Hapus garis pinggir luar */
+    box-shadow: none !important;        /* Hapus bayangan bertumpuk */
+    position: relative;
+    z-index: 1;
+}
+
+/* Logo Lingkaran Kuning */
+.auth-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 50% !important;
+  background: #FFC107 !important; /* Accent Moodboard */
+  color: #000000 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.login-left h2 {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #ffffff;
+}
+
+.login-left p {
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: 28px;
+  color: #E0E0E0;
+}
+
+/* Tombol ke Register (Outline Putih) */
+.btn-signup-login {
+  background: transparent !important;
+  border: 2px solid #ffffff !important;
+  color: #ffffff !important;
+  padding: 12px 60px;
+  border-radius: 999px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.btn-signup-login:hover {
+  background-color: #FFC107 !important;
+  color: #000000 !important;
+  border-color: #FFC107 !important;
+  transform: translateY(-2px);
+}
+
+/* ===== PANEL KANAN (FORM - LIGHT GADING) ===== */
+.login-right {
+  flex: 1.2;
+  background-color: #FEFDFC !important; /* Putih Gading Moodboard */
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 80px;
+  border-radius: 0;
+  border: none !important;
+  animation: loginSlideInRight 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.login-right .brand {
+  color: #000000 !important; /* Hitam pekat Moodboard */
+  font-weight: 700;
+  font-size: 36px;
+  margin-bottom: 4px;
+}
+
+.login-right .subtitle {
+  color: #8A8A8A !important; /* Sub-text grey */
+  font-size: 15px;
+  margin-bottom: 24px;
+}
+
+/* ===== FORM STYLING ===== */
+.login-form {
+  width: 100%;
+  max-width: 360px;
+}
+
+.login-form label {
+  color: #000000 !important;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.login-form input {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: 10px !important;
+  border: 1px solid #E0E0E0 !important; /* Unselected Color */
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.login-form input:focus {
+  border-color: #FFC107 !important;
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.1) !important;
+}
+
+/* Tombol Login (Hitam Solid ala Primary Button Moodboard) */
+.btn-loginsignin {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  padding: 14px 0;
+  width: 100%;
+  border: none;
+  border-radius: 10px !important;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.btn-loginsignin:hover {
+  background-color: #2F3E46 !important;
+  transform: translateY(-1px);
+}
+
+.forgot-password {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  color: #8A8A8A;
+  text-decoration: none;
+  margin-top: 15px;
+}
+
+.forgot-password:hover {
+  color: #000000;
+  text-decoration: underline;
+}
+
+/* ===== RESPONSIVE (MOBILE) ===== */
+@media (max-width: 900px) {
+  .login-page {
+    flex-direction: column;
+  }
+  .login-left, .login-right {
+    flex: none;
+    width: 100%;
+    height: 50%;
+    padding: 20px;
+  }
+}

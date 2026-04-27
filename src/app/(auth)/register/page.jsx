@@ -1,0 +1,201 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import "../style/register.css";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+
+function Register() {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const router = useRouter();
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const pwdOkLen = password.length >= 6;
+  const pwdOkNum = /\d/.test(password);
+
+  // Trigger animations on mount to ensure consistency on logout redirect
+  useEffect(() => {
+    // Force reflow to restart animations
+    const registerPage = document.querySelector('.register-page');
+    if (registerPage) {
+      registerPage.offsetHeight;
+    }
+  }, []);
+
+  const togglePassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Registration failed");
+        return;
+      }
+
+      // Registrasi berhasil
+      setSuccess(true);
+      
+      // Auto redirect setelah 2 detik
+      setTimeout(() => {
+        router.push("/login");
+      }, 2000);
+    } catch (err) {
+      setError("Connection error. Please try again.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="register-page">
+      {/* Modal Success */}
+      {success && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <div className="modal-icon">✓</div>
+            <h2>Registration Successful!</h2>
+            <p>Akun kamu berhasil dibuat. Silakan login.</p>
+            <button
+              onClick={() => router.push("/login")}
+              className="modal-btn"
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="register-left">
+          <h1 className="brand">Finansialin</h1>
+          <p className="subtitle">Sign up to continue</p>
+
+          {error && (
+            <div className="error-message" style={{ color: "red", marginBottom: "1rem" }}>
+              {error}
+            </div>
+          )}
+
+          <form className="register-form" onSubmit={handleSubmit} autoComplete="off">
+            <label>Name</label>
+            <input
+              type="text"
+              placeholder="Enter your name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              autoComplete="off"
+              name="register-name"
+            />
+
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
+              autoComplete="off"
+              inputMode="email"
+              autoCorrect="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              name="register-email"
+            />
+            {emailFocused && (
+              <small className={`input-hint ${emailValid ? 'ok' : (email.length > 0 ? 'warn' : '')}`}>
+                Use a valid email like name@example.com
+              </small>
+            )}
+
+            <label>Password</label>
+            <div className="password-wrapper">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+                autoComplete="new-password"
+                name="register-password"
+              />
+              <span className="toggle-password" onClick={togglePassword}>
+                {showPassword ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="icon-eye">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12C3.5 7.5 7.5 4.5 12 4.5s8.5 3 9.75 7.5c-1.25 4.5-5.25 7.5-9.75 7.5s-8.5-3-9.75-7.5z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="icon-eye">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3.98 8.223A10.477 10.477 0 001.5 12c1.25 4.5 5.25 7.5 9.75 7.5 1.99 0 3.84-.57 5.39-1.55M10.5 6.75A10.45 10.45 0 0112 6.5c4.5 0 8.5 3 9.75 7.5-.39 1.42-1.11 2.71-2.09 3.79M3 3l18 18"
+                    />
+                  </svg>
+                )}
+              </span>
+            </div>
+            {passwordFocused && (
+              <div className="hint-list">
+                <div className={pwdOkLen ? 'ok' : 'warn'}>• Minimum 6 characters</div>
+                <div className={pwdOkNum ? 'ok' : 'warn'}>• Include at least 1 number</div>
+              </div>
+            )}
+
+            <button type="submit" className="btn-signup" disabled={loading}>
+              {loading ? "Signing Up..." : "Sign Up"}
+            </button>
+          </form>
+        </div>
+
+      <div className="register-right">
+        <div className="auth-illustration-wrap">
+          <div className="auth-logo" aria-label="Finansialin logo">FI</div>
+        </div>
+        <h2>Welcome Back!</h2>
+        <p>
+          To keep connect with us please <br /> login with your personal info
+        </p>
+        <Link href="/login" className="btn-login">
+          Log In
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+export default Register;
