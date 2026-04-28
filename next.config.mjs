@@ -1,8 +1,16 @@
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   compress: true,
   poweredByHeader: false,
   allowedDevOrigins: ['10.222.223.154'],
+  turbopack: {
+    root: __dirname,
+  },
   images: {
     remotePatterns: [
       // Add remote patterns here if you use external images

@@ -6,7 +6,35 @@ const CACHE_TTL = 30 * 1000; // 30 seconds
 
 export function getAccessToken() {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("access_token");
+  const token = localStorage.getItem("access_token") || localStorage.getItem("accessToken");
+  if (!token || token === "undefined" || token === "null") return null;
+  return token;
+}
+
+export function getRefreshToken() {
+  if (typeof window === "undefined") return null;
+  const token = localStorage.getItem("refresh_token") || localStorage.getItem("refreshToken");
+  if (!token || token === "undefined" || token === "null") return null;
+  return token;
+}
+
+function saveAuthTokens(payload = {}) {
+  if (typeof window === "undefined") return;
+  const nextAccessToken = payload.accessToken || payload.access_token;
+  const nextRefreshToken = payload.refreshToken || payload.refresh_token;
+
+  if (nextAccessToken) {
+    localStorage.setItem("access_token", nextAccessToken);
+  }
+  if (nextRefreshToken) {
+    localStorage.setItem("refresh_token", nextRefreshToken);
+  }
+}
+
+function clearAuthTokens() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
 }
 
 const normalizePath = (path) => {
@@ -79,7 +107,7 @@ async function request(method, path, body = null, options = {}) {
     body: body ? JSON.stringify(body) : undefined,
   };
 
-  const response = await fetchWithRetryAndTimeout(url, fetchOptions);
+  let response = await fetchWithRetryAndTimeout(url, fetchOptions);
   
   let data = null;
   const raw = await response.text();
@@ -87,6 +115,42 @@ async function request(method, path, body = null, options = {}) {
     data = raw ? JSON.parse(raw) : null;
   } catch {
     data = null;
+  }
+
+  if (
+    response.status === 401 &&
+    !options._retryAuth &&
+    !normalizedPath.startsWith('/api/auth/login') &&
+    !normalizedPath.startsWith('/api/auth/register') &&
+    !normalizedPath.startsWith('/api/auth/refresh')
+  ) {
+    const refreshToken = getRefreshToken();
+
+    if (refreshToken) {
+      const refreshResponse = await fetchWithRetryAndTimeout(`${API_BASE_URL}/api/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      }, 0);
+
+      const refreshRaw = await refreshResponse.text();
+      let refreshData = null;
+      try {
+        refreshData = refreshRaw ? JSON.parse(refreshRaw) : null;
+      } catch {
+        refreshData = null;
+      }
+
+      if (refreshResponse.ok) {
+        saveAuthTokens(refreshData || {});
+        return request(method, path, body, { ...options, _retryAuth: true });
+      }
+
+      clearAuthTokens();
+    }
   }
 
   if (!response.ok) {

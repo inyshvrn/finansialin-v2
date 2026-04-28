@@ -81,8 +81,8 @@ export default function DashboardPage() {
     const totalIncome = dashboardData?.totalIncome || 0;
     const totalExpense = dashboardData?.totalExpense || 0;
     const totalBalance = dashboardData?.totalBalance || 0;
-    const incomeChartData = dashboardData?.incomeChartData || [];
-    const recentTransactions = dashboardData?.recentTransactions || [];
+    const incomeChartData = useMemo(() => dashboardData?.incomeChartData || [], [dashboardData?.incomeChartData]);
+    const recentTransactions = useMemo(() => dashboardData?.recentTransactions || [], [dashboardData?.recentTransactions]);
 
     const budgets = useMemo(() => {
         return (rawBudgets || []).slice(0, 2);
@@ -134,7 +134,7 @@ export default function DashboardPage() {
                             key={idx}
                             type={source.name || `Source ${idx + 1}`}
                             icon={idx === 0 ? CreditCard : idx === 1 ? Wallet : Banknote}
-                            amount={formatCurrency(source.currentBalance || 0)}
+                                amount={formatCurrency(source.availableBalance ?? source.currentBalance ?? 0)}
                             color={idx === 0 ? "#00529C" : idx === 1 ? "#FFD600" : "#1A1A1A"}
                         />
                     ))
