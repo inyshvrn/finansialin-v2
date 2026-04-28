@@ -70,49 +70,19 @@ GoalItem.displayName = "GoalItem";
 export default function DashboardPage() {
     const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useApi('/api/auth/profile');
     const { data: fundingSources, isLoading: isFundingLoading, error: fundingError } = useApi('/api/funding-sources');
-    const { data: rawTxns, isLoading: isTxnsLoading, error: txnsError } = useApi('/api/transactions');
+    const { data: dashboardData, isLoading: isDashboardLoading, error: dashboardError } = useApi('/api/insights/dashboard-summary');
     const { data: rawBudgets, isLoading: isBudgetLoading, error: budgetError } = useApi('/api/budgets');
     const { data: categories, isLoading: isCatLoading, error: catError } = useApi('/api/categories');
 
-    const isLoading = isProfileLoading || isFundingLoading || isTxnsLoading || isBudgetLoading || isCatLoading;
-    const error = profileError || fundingError || txnsError || budgetError || catError;
+    const isLoading = isProfileLoading || isFundingLoading || isDashboardLoading || isBudgetLoading || isCatLoading;
+    const error = profileError || fundingError || dashboardError || budgetError || catError;
 
-    const last6Months = useMemo(() => {
-        const months = [];
-        const now = new Date();
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-            months.push(d.toISOString().substring(0, 7));
-        }
-        return months;
-    }, []);
-
-    const incomeData = useMemo(() => {
-        const income = {};
-        last6Months.forEach(month => { income[month] = 0; });
-        (rawTxns || []).forEach(t => {
-            if (t.date) {
-                const monthKey = t.date.substring(0, 7);
-                if (income.hasOwnProperty(monthKey) && t.type === 'income') {
-                    income[monthKey] = (income[monthKey] || 0) + Number(t.amount || 0);
-                }
-            }
-        });
-        return income;
-    }, [rawTxns, last6Months]);
-
-    const transactions = useMemo(() => {
-        const txnsArray = (rawTxns || []).slice(0, 3);
-        const categoryMap = new Map((categories || []).map(c => [c.idCategory, c.name]));
-        return txnsArray.map(t => ({
-            receiver: t.description || 'Unknown',
-            type: categoryMap.get(t.idCategory) || t.type || 'Other',
-            date: t.date ? new Date(t.date).toLocaleDateString('id-ID', { 
-                day: '2-digit', month: 'short', year: 'numeric' 
-            }) : 'Unknown',
-            amount: `Rp${Number(t.amount || 0).toLocaleString('id-ID')}`
-        }));
-    }, [rawTxns, categories]);
+    // Extract data from dashboard summary API
+    const totalIncome = dashboardData?.totalIncome || 0;
+    const totalExpense = dashboardData?.totalExpense || 0;
+    const totalBalance = dashboardData?.totalBalance || 0;
+    const incomeChartData = dashboardData?.incomeChartData || [];
+    const recentTransactions = dashboardData?.recentTransactions || [];
 
     const budgets = useMemo(() => {
         return (rawBudgets || []).slice(0, 2);
@@ -120,21 +90,16 @@ export default function DashboardPage() {
 
     const formatCurrency = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
 
+    // Extract chart data from API response
     const chartHeights = useMemo(() => {
-        const incomeValues = last6Months.map(m => incomeData[m] || 0);
+        const incomeValues = (incomeChartData || []).map(item => item.amount || 0);
         const maxValue = Math.max(...incomeValues, 1);
         return incomeValues.map(v => (v / maxValue) * 100);
-    }, [incomeData, last6Months]);
+    }, [incomeChartData]);
 
     const monthLabels = useMemo(() => {
-        return last6Months.map(m => {
-            const [, month] = m.split('-');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            return monthNames[parseInt(month) - 1];
-        });
-    }, [last6Months]);
-
-    const totalIncome = useMemo(() => Object.values(incomeData).reduce((a, b) => a + b, 0), [incomeData]);
+        return (incomeChartData || []).map(item => item.month || '');
+    }, [incomeChartData]);
 
     if (error) {
         return (
@@ -254,13 +219,13 @@ export default function DashboardPage() {
                                         <th className="text-right pb-4">Amount</th>
                                     </tr>
                                 </thead>
-                                <tbody className="font-bold text-[#1A1A1A]">
-                                    {transactions.map((trx, i) => (
+                        <tbody className="font-bold text-[#1A1A1A]">
+                                    {recentTransactions.map((trx, i) => (
                                         <tr key={i} className="border-b border-[#F6F5F1] last:border-0 hover:bg-[#FDFCFB] transition-colors group">
-                                            <td className="py-5">{trx.receiver}</td>
-                                            <td className="py-5 text-[#A3A3A3] font-medium">{trx.type}</td>
+                                            <td className="py-5">{trx.description}</td>
+                                            <td className="py-5 text-[#A3A3A3] font-medium">{trx.categoryName}</td>
                                             <td className="py-5 font-medium text-[#7A746E]">{trx.date}</td>
-                                            <td className="py-5 text-right font-black">{trx.amount}</td>
+                                            <td className="py-5 text-right font-black">Rp{Number(trx.amount).toLocaleString('id-ID')}</td>
                                         </tr>
                                     ))}
                                 </tbody>

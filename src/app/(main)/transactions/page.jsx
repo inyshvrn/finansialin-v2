@@ -45,9 +45,23 @@ export default function TransactionsPage() {
   const [formData, setFormData] = useState({ desc: "", type: "Income", amount: "", cat: "", date: today, idCategory: null });
   const [actionError, setActionError] = useState("");
 
-  const itemsPerPage = 25;
+  // --- BUILD QUERY PARAMS FOR SERVER-SIDE FILTERING ---
+  const queryParams = new URLSearchParams();
+  if (searchTerm) queryParams.append('q', searchTerm);
+  if (filterType !== "All") queryParams.append('type', filterType === "Income" ? "income" : "expense");
+  if (selectedMonth) {
+    const [year, month] = selectedMonth.split('-');
+    const startDate = `${year}-${month}-01`;
+    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+    queryParams.append('dateFrom', startDate);
+    queryParams.append('dateTo', endDate);
+  }
+  queryParams.append('page', currentPage.toString());
+  queryParams.append('per_page', '25');
 
-  const { data: rawTxns, isLoading: isTxnsLoading, error: txnsError, refetch: refetchTxns } = useApi("/api/transactions");
+  const { data: paginatedData, isLoading: isTxnsLoading, error: txnsError, refetch: refetchTxns } = useApi(
+    `/api/transactions/search?${queryParams.toString()}`
+  );
   const { data: rawCategories, isLoading: isCatLoading, error: catError } = useApi("/api/categories");
 
   const loading = isTxnsLoading || isCatLoading;
@@ -57,22 +71,23 @@ export default function TransactionsPage() {
   const normalizeTypeToUi = useCallback((type) => (type === "income" ? "Income" : "Expenses"), []);
   const normalizeTypeToApi = useCallback((type) => (type === "Income" ? "income" : "expense"), []);
 
-  const transactions = useMemo(() => {
-    if (!rawTxns) return [];
+  // Extract transactions from paginated response
+  const displayedTransactions = useMemo(() => {
+    if (!paginatedData || !paginatedData.data) return [];
     const categoryMap = new Map((rawCategories || []).map((c) => [c.idCategory, c.name]));
-    return rawTxns.map((item) => {
+    return paginatedData.data.map((item) => {
       const date = item?.date ? String(item.date).slice(0, 10) : today;
       return {
         id: item.idTransaction,
         idCategory: item.idCategory ?? null,
         date,
         desc: item.description || "(No description)",
-        cat: item.idCategory ? (categoryMap.get(item.idCategory) || "Uncategorized") : "Uncategorized",
+        cat: item.category?.name || (item.idCategory ? (categoryMap.get(item.idCategory) || "Uncategorized") : "Uncategorized"),
         type: normalizeTypeToUi(item.type),
         amount: Number(item.amount || 0),
       };
     });
-  }, [rawTxns, rawCategories, today, normalizeTypeToUi]);
+  }, [paginatedData, rawCategories, today, normalizeTypeToUi]);
 
   const resolveCategoryId = useCallback((categoryName, type) => {
     const normalized = categoryName.trim().toLowerCase();
@@ -140,26 +155,29 @@ export default function TransactionsPage() {
     setFormData({ desc: "", type: "Income", amount: "", cat: "", date: today, idCategory: null });
   }, [today]);
 
-  // --- LOGIC FILTER ---
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter((trx) => {
-      const matchSearch = trx.desc.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchType = filterType === "All" || trx.type === filterType;
-      const matchMonth = trx.date.startsWith(selectedMonth);
-      return matchSearch && matchType && matchMonth;
-    });
-  }, [searchTerm, filterType, selectedMonth, transactions]);
+  // Get pagination info from API response
+  const totalPages = paginatedData?.last_page || 1;
+  const totalResults = paginatedData?.total || 0;
+  const pageNumbers = useMemo(() => {
+    const pages = [];
+    for (let i = 1; i <= totalPages; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }, [totalPages]);
 
-  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  const displayedTransactions = useMemo(() => {
-    return filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  }, [filteredTransactions, currentPage, itemsPerPage]);
-  
-  const pageNumbers = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
-
-  const totalBalance = useMemo(() => transactions.reduce((acc, curr) => curr.type === "Income" ? acc + curr.amount : acc - curr.amount, 0), [transactions]);
-  const totalIncome = useMemo(() => transactions.filter(t => t.type === "Income").reduce((acc, curr) => acc + curr.amount, 0), [transactions]);
-  const totalExpenses = useMemo(() => transactions.filter(t => t.type === "Expenses").reduce((acc, curr) => acc + curr.amount, 0), [transactions]);
+  const totalBalance = useMemo(() => 
+    displayedTransactions.reduce((acc, curr) => curr.type === "Income" ? acc + curr.amount : acc - curr.amount, 0),
+    [displayedTransactions]
+  );
+  const totalIncome = useMemo(() => 
+    displayedTransactions.filter(t => t.type === "Income").reduce((acc, curr) => acc + curr.amount, 0),
+    [displayedTransactions]
+  );
+  const totalExpenses = useMemo(() => 
+    displayedTransactions.filter(t => t.type === "Expenses").reduce((acc, curr) => acc + curr.amount, 0),
+    [displayedTransactions]
+  );
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20 font-sans text-[#1A1A1A]">
@@ -199,6 +217,7 @@ export default function TransactionsPage() {
             <input 
               type="text" 
               placeholder="Search description..." 
+              value={searchTerm}
               onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
               className="w-full h-12 bg-[#F6F5F1] rounded-2xl pl-12 pr-4 border-none focus:ring-2 focus:ring-[#FFD600] text-sm font-medium" 
             />
@@ -287,7 +306,7 @@ export default function TransactionsPage() {
         {/* --- PAGINATION --- */}
         {!loading && totalPages > 1 && (
           <div className="flex justify-between items-center pt-8 border-t border-[#F6F5F1]">
-            <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">{filteredTransactions.length} Results</p>
+            <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">{totalResults} Results</p>
             <div className="flex gap-2">
               {pageNumbers.map(num => (
                 <button
