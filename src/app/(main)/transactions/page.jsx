@@ -3,22 +3,50 @@ import React, { useMemo, useRef, useState, useCallback } from "react";
 import Header from "../../components/header";
 import { useApi } from "@/hooks/useApi";
 import { apiPost, apiPut, apiDelete } from "@/lib/apiClient";
+import { apiRequest } from "@/lib/api";
 import { SkeletonTable } from "@/components/ui/Skeleton";
-import { 
-  Plus, Filter, Search, ChevronDown, Edit3, Trash2, 
-  X, Calendar, ArrowUpRight, ArrowDownLeft, Camera, Keyboard,
-  Image as ImageIcon, AlertCircle
+import {
+  Plus,
+  Filter,
+  Search,
+  ChevronDown,
+  Edit3,
+  Trash2,
+  X,
+  Calendar,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Camera,
+  Keyboard,
+  Image as ImageIcon,
+  AlertCircle,
+  Loader2,
+  UploadCloud,
 } from "lucide-react";
 
 const SummaryCard = React.memo(({ label, amount, trend, color, textColor }) => {
   const isDark = color === "bg-[#1A1A1A]";
   return (
-    <div className={`${color} p-7 rounded-[32px] border border-[#E8E2D9] shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all`}>
+    <div
+      className={`${color} p-7 rounded-[32px] border border-[#E8E2D9] shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all`}
+    >
       <div className="space-y-1 relative z-10 font-sans">
-        <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#FFD600]/60" : "text-[#1A1A1A]/60"}`}>{label}</p>
-        <h3 className={`text-xl font-black tracking-tighter ${textColor} tabular-nums`}>{amount}</h3>
+        <p
+          className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#FFD600]/60" : "text-[#1A1A1A]/60"}`}
+        >
+          {label}
+        </p>
+        <h3
+          className={`text-xl font-black tracking-tighter ${textColor} tabular-nums`}
+        >
+          {amount}
+        </h3>
         <div className="flex items-center gap-1.5 pt-2">
-          <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${isDark ? "bg-[#FFD600] text-[#1A1A1A]" : "bg-[#1A1A1A] text-[#FFD600]"}`}>{trend} ↗</span>
+          <span
+            className={`text-[9px] font-black px-2 py-1 rounded-lg ${isDark ? "bg-[#FFD600] text-[#1A1A1A]" : "bg-[#1A1A1A] text-[#FFD600]"}`}
+          >
+            {trend} ↗
+          </span>
         </div>
       </div>
     </div>
@@ -31,7 +59,7 @@ export default function TransactionsPage() {
 
   // --- STATES UTAMA ---
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState("All"); 
+  const [filterType, setFilterType] = useState("All");
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -42,39 +70,65 @@ export default function TransactionsPage() {
   // --- CRUD STATES ---
   const [editingTrx, setEditingTrx] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null); // State baru untuk modal delete
-  const [formData, setFormData] = useState({ desc: "", type: "Income", amount: "", cat: "", date: today, idCategory: null });
+  const [formData, setFormData] = useState({
+    desc: "",
+    type: "Income",
+    amount: "",
+    cat: "",
+    date: today,
+    idCategory: null,
+  });
   const [actionError, setActionError] = useState("");
+  const [selectedReceiptFile, setSelectedReceiptFile] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanError, setScanError] = useState("");
 
   // --- BUILD QUERY PARAMS FOR SERVER-SIDE FILTERING ---
   const queryParams = new URLSearchParams();
-  if (searchTerm) queryParams.append('q', searchTerm);
-  if (filterType !== "All") queryParams.append('type', filterType === "Income" ? "income" : "expense");
+  if (searchTerm) queryParams.append("q", searchTerm);
+  if (filterType !== "All")
+    queryParams.append("type", filterType === "Income" ? "income" : "expense");
   if (selectedMonth) {
-    const [year, month] = selectedMonth.split('-');
+    const [year, month] = selectedMonth.split("-");
     const startDate = `${year}-${month}-01`;
-    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-    queryParams.append('dateFrom', startDate);
-    queryParams.append('dateTo', endDate);
+    const endDate = new Date(year, month, 0).toISOString().split("T")[0];
+    queryParams.append("dateFrom", startDate);
+    queryParams.append("dateTo", endDate);
   }
-  queryParams.append('page', currentPage.toString());
-  queryParams.append('per_page', '25');
+  queryParams.append("page", currentPage.toString());
+  queryParams.append("per_page", "25");
 
-  const { data: paginatedData, isLoading: isTxnsLoading, error: txnsError, refetch: refetchTxns } = useApi(
-    `/api/transactions/search?${queryParams.toString()}`
-  );
-  const { data: rawCategories, isLoading: isCatLoading, error: catError } = useApi("/api/categories");
+  const {
+    data: paginatedData,
+    isLoading: isTxnsLoading,
+    error: txnsError,
+    refetch: refetchTxns,
+  } = useApi(`/api/transactions/search?${queryParams.toString()}`);
+  const {
+    data: rawCategories,
+    isLoading: isCatLoading,
+    error: catError,
+  } = useApi("/api/categories");
 
   const loading = isTxnsLoading || isCatLoading;
   const apiError = txnsError || catError || actionError;
 
   // --- LOGIC CRUD ---
-  const normalizeTypeToUi = useCallback((type) => (type === "income" ? "Income" : "Expenses"), []);
-  const normalizeTypeToApi = useCallback((type) => (type === "Income" ? "income" : "expense"), []);
+  const normalizeTypeToUi = useCallback(
+    (type) => (type === "income" ? "Income" : "Expenses"),
+    [],
+  );
+  const normalizeTypeToApi = useCallback(
+    (type) => (type === "Income" ? "income" : "expense"),
+    [],
+  );
 
   // Extract transactions from paginated response
   const displayedTransactions = useMemo(() => {
     if (!paginatedData || !paginatedData.data) return [];
-    const categoryMap = new Map((rawCategories || []).map((c) => [c.idCategory, c.name]));
+    const categoryMap = new Map(
+      (rawCategories || []).map((c) => [c.idCategory, c.name]),
+    );
     return paginatedData.data.map((item) => {
       const date = item?.date ? String(item.date).slice(0, 10) : today;
       return {
@@ -82,32 +136,43 @@ export default function TransactionsPage() {
         idCategory: item.idCategory ?? null,
         date,
         desc: item.description || "(No description)",
-        cat: item.category?.name || (item.idCategory ? (categoryMap.get(item.idCategory) || "Uncategorized") : "Uncategorized"),
+        cat:
+          item.category?.name ||
+          (item.idCategory
+            ? categoryMap.get(item.idCategory) || "Uncategorized"
+            : "Uncategorized"),
         type: normalizeTypeToUi(item.type),
         amount: Number(item.amount || 0),
       };
     });
   }, [paginatedData, rawCategories, today, normalizeTypeToUi]);
 
-  const resolveCategoryId = useCallback((categoryName, type) => {
-    const normalized = categoryName.trim().toLowerCase();
-    if (!normalized) return null;
+  const resolveCategoryId = useCallback(
+    (categoryName, type) => {
+      const normalized = categoryName.trim().toLowerCase();
+      if (!normalized) return null;
 
-    const apiType = normalizeTypeToApi(type);
-    const found = (rawCategories || []).find((cat) => {
-      const sameName = String(cat.name || "").trim().toLowerCase() === normalized;
-      const sameType = String(cat.type || "") === apiType;
-      return sameName && sameType;
-    });
+      const apiType = normalizeTypeToApi(type);
+      const found = (rawCategories || []).find((cat) => {
+        const sameName =
+          String(cat.name || "")
+            .trim()
+            .toLowerCase() === normalized;
+        const sameType = String(cat.type || "") === apiType;
+        return sameName && sameType;
+      });
 
-    return found?.idCategory ?? null;
-  }, [rawCategories, normalizeTypeToApi]);
+      return found?.idCategory ?? null;
+    },
+    [rawCategories, normalizeTypeToApi],
+  );
 
   const handleSave = async (e) => {
     e.preventDefault();
     setActionError("");
 
-    const categoryId = formData.idCategory ?? resolveCategoryId(formData.cat, formData.type);
+    const categoryId =
+      formData.idCategory ?? resolveCategoryId(formData.cat, formData.type);
     const payload = {
       description: formData.desc,
       type: normalizeTypeToApi(formData.type),
@@ -144,16 +209,139 @@ export default function TransactionsPage() {
   const openEditModal = useCallback((trx) => {
     setEditingTrx(trx);
     setFormData({ ...trx });
-    setAddMethod('manual');
+    setAddMethod("manual");
+    setSelectedReceiptFile(null);
+    setScanError("");
     setIsModalOpen(true);
+  }, []);
+
+  const resetScanState = useCallback(() => {
+    setSelectedReceiptFile(null);
+    setScanError("");
+    setIsScanning(false);
   }, []);
 
   const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setEditingTrx(null);
     setAddMethod(null);
-    setFormData({ desc: "", type: "Income", amount: "", cat: "", date: today, idCategory: null });
-  }, [today]);
+    setFormData({
+      desc: "",
+      type: "Income",
+      amount: "",
+      cat: "",
+      date: today,
+      idCategory: null,
+    });
+    resetScanState();
+  }, [today, resetScanState]);
+
+  const handleReceiptSelect = useCallback((e) => {
+    const file = e.target.files?.[0] || null;
+    setScanError("");
+
+    if (!file) {
+      setSelectedReceiptFile(null);
+      return;
+    }
+
+    const allowedTypes = ["image/png", "image/jpg", "image/jpeg"];
+    const maxSize = 4 * 1024 * 1024;
+
+    if (!allowedTypes.includes(file.type)) {
+      setSelectedReceiptFile(null);
+      setScanError("File harus berformat PNG atau JPG/JPEG.");
+      return;
+    }
+
+    if (file.size > maxSize) {
+      setSelectedReceiptFile(null);
+      setScanError("Ukuran file maksimal 4MB.");
+      return;
+    }
+
+    setSelectedReceiptFile(file);
+  }, []);
+
+  const toInputDate = useCallback(
+    (value) => {
+      if (!value) return today;
+      const parsed = new Date(value);
+      if (Number.isNaN(parsed.getTime())) return today;
+      return parsed.toISOString().slice(0, 10);
+    },
+    [today],
+  );
+
+  const mapOcrToFormData = useCallback(
+    (response) => {
+      const source = response?.data ?? response?.result ?? response ?? {};
+      const trx = source?.transaction ?? source;
+
+      const nextTypeRaw = String(trx?.type || source?.type || "").toLowerCase();
+      const nextType = nextTypeRaw === "income" ? "Income" : "Expenses";
+
+      const nextDesc =
+        trx?.description ||
+        trx?.desc ||
+        trx?.merchant ||
+        source?.description ||
+        source?.merchant ||
+        "Pembelian dari scan receipt";
+
+      const amountRaw =
+        trx?.amount ??
+        trx?.total ??
+        trx?.total_amount ??
+        source?.amount ??
+        source?.total ??
+        "";
+
+      const numericAmount = String(amountRaw).replace(/[^\d.]/g, "");
+      const nextCat =
+        trx?.category || trx?.cat || source?.category || source?.cat || "";
+      const nextDate = toInputDate(trx?.date || source?.date || today);
+      const matchedIdCategory = resolveCategoryId(String(nextCat), nextType);
+
+      return {
+        desc: nextDesc,
+        type: nextType,
+        amount: numericAmount,
+        cat: nextCat,
+        date: nextDate,
+        idCategory: matchedIdCategory,
+      };
+    },
+    [resolveCategoryId, toInputDate, today],
+  );
+
+  const handleScanReceipt = async () => {
+    if (!selectedReceiptFile) {
+      setScanError("Pilih file receipt terlebih dahulu.");
+      return;
+    }
+
+    setIsScanning(true);
+    setScanError("");
+
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append("receiptImage", selectedReceiptFile);
+
+      const response = await apiRequest("/api/insights/receipt-ocr", {
+        method: "POST",
+        body: formDataUpload,
+      });
+
+      setFormData(mapOcrToFormData(response));
+      setAddMethod("manual");
+    } catch (err) {
+      console.error(err);
+      setScanError(err.message || "Gagal scan receipt.");
+    } finally {
+      setIsScanning(false);
+    }
+  };
 
   // Get pagination info from API response
   const totalPages = paginatedData?.last_page || 1;
@@ -166,17 +354,28 @@ export default function TransactionsPage() {
     return pages;
   }, [totalPages]);
 
-  const totalBalance = useMemo(() => 
-    displayedTransactions.reduce((acc, curr) => curr.type === "Income" ? acc + curr.amount : acc - curr.amount, 0),
-    [displayedTransactions]
+  const totalBalance = useMemo(
+    () =>
+      displayedTransactions.reduce(
+        (acc, curr) =>
+          curr.type === "Income" ? acc + curr.amount : acc - curr.amount,
+        0,
+      ),
+    [displayedTransactions],
   );
-  const totalIncome = useMemo(() => 
-    displayedTransactions.filter(t => t.type === "Income").reduce((acc, curr) => acc + curr.amount, 0),
-    [displayedTransactions]
+  const totalIncome = useMemo(
+    () =>
+      displayedTransactions
+        .filter((t) => t.type === "Income")
+        .reduce((acc, curr) => acc + curr.amount, 0),
+    [displayedTransactions],
   );
-  const totalExpenses = useMemo(() => 
-    displayedTransactions.filter(t => t.type === "Expenses").reduce((acc, curr) => acc + curr.amount, 0),
-    [displayedTransactions]
+  const totalExpenses = useMemo(
+    () =>
+      displayedTransactions
+        .filter((t) => t.type === "Expenses")
+        .reduce((acc, curr) => acc + curr.amount, 0),
+    [displayedTransactions],
   );
 
   return (
@@ -191,53 +390,77 @@ export default function TransactionsPage() {
 
       {/* Summary Cards */}
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-[#1A1A1A]">
-        <SummaryCard 
-          label="Total Balance" 
-          amount={`Rp ${totalBalance.toLocaleString('id-ID')}`} 
-          trend="+15%" color="bg-[#1A1A1A]" textColor="text-[#FFD600]" 
+        <SummaryCard
+          label="Total Balance"
+          amount={`Rp ${totalBalance.toLocaleString("id-ID")}`}
+          trend="+15%"
+          color="bg-[#1A1A1A]"
+          textColor="text-[#FFD600]"
         />
-        <SummaryCard 
-          label="Total Income" 
-          amount={`Rp ${totalIncome.toLocaleString('id-ID')}`} 
-          trend="+30%" color="bg-[#FFD600]" textColor="text-[#1A1A1A]" 
+        <SummaryCard
+          label="Total Income"
+          amount={`Rp ${totalIncome.toLocaleString("id-ID")}`}
+          trend="+30%"
+          color="bg-[#FFD600]"
+          textColor="text-[#1A1A1A]"
         />
-        <SummaryCard 
-          label="Total Expenses" 
-          amount={`Rp ${totalExpenses.toLocaleString('id-ID')}`} 
-          trend="-11%" color="bg-[#1A1A1A]" textColor="text-[#FFD600]" 
+        <SummaryCard
+          label="Total Expenses"
+          amount={`Rp ${totalExpenses.toLocaleString("id-ID")}`}
+          trend="-11%"
+          color="bg-[#1A1A1A]"
+          textColor="text-[#FFD600]"
         />
-        <SummaryCard label="Savings Target" amount="Rp 50.000.000" trend="+5%" color="bg-[#FFD600]" textColor="text-[#1A1A1A]" />
+        <SummaryCard
+          label="Savings Target"
+          amount="Rp 50.000.000"
+          trend="+5%"
+          color="bg-[#FFD600]"
+          textColor="text-[#1A1A1A]"
+        />
       </section>
 
       {/* Filter & Action Row */}
       <section className="bg-white p-8 rounded-[40px] border border-[#E8E2D9] shadow-sm space-y-8">
         <div className="flex flex-col lg:flex-row justify-between items-center gap-6">
           <div className="relative w-full lg:w-96">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A3A3A3]" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search description..." 
+            <Search
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A3A3A3]"
+              size={18}
+            />
+            <input
+              type="text"
+              placeholder="Search description..."
               value={searchTerm}
-              onChange={(e) => {setSearchTerm(e.target.value); setCurrentPage(1);}}
-              className="w-full h-12 bg-[#F6F5F1] rounded-2xl pl-12 pr-4 border-none focus:ring-2 focus:ring-[#FFD600] text-sm font-medium" 
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full h-12 bg-[#F6F5F1] rounded-2xl pl-12 pr-4 border-none focus:ring-2 focus:ring-[#FFD600] text-sm font-medium"
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                className={`p-3.5 rounded-2xl border border-[#E8E2D9] transition-all flex items-center gap-2 hover:bg-[#F6F5F1] ${showFilterDropdown ? 'bg-[#1A1A1A] text-[#FFD600]' : 'bg-white text-[#7A746E]'}`}
+                className={`p-3.5 rounded-2xl border border-[#E8E2D9] transition-all flex items-center gap-2 hover:bg-[#F6F5F1] ${showFilterDropdown ? "bg-[#1A1A1A] text-[#FFD600]" : "bg-white text-[#7A746E]"}`}
               >
                 <Filter size={18} />
-                <span className="text-[10px] font-black uppercase tracking-widest">{filterType}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {filterType}
+                </span>
               </button>
               {showFilterDropdown && (
                 <div className="absolute top-14 left-0 w-40 bg-white border border-[#E8E2D9] rounded-2xl shadow-xl z-20 overflow-hidden animate-in zoom-in-95 duration-200">
                   {["All", "Income", "Expenses"].map((type) => (
                     <button
                       key={type}
-                      onClick={() => { setFilterType(type); setShowFilterDropdown(false); setCurrentPage(1); }}
+                      onClick={() => {
+                        setFilterType(type);
+                        setShowFilterDropdown(false);
+                        setCurrentPage(1);
+                      }}
                       className="w-full px-5 py-3 text-left text-[11px] font-bold uppercase tracking-wider hover:bg-[#FFD600] hover:text-[#1A1A1A] transition-colors border-b border-[#F6F5F1] last:border-0"
                     >
                       {type}
@@ -248,17 +471,46 @@ export default function TransactionsPage() {
             </div>
 
             <div className="relative">
-              <input type="month" ref={monthInputRef} value={selectedMonth} onChange={(e) => {setSelectedMonth(e.target.value); setCurrentPage(1);}} className="absolute inset-0 w-0 h-0 opacity-0" />
-              <button onClick={() => monthInputRef.current?.showPicker()} className="flex items-center gap-2 px-6 py-3.5 bg-white border border-[#E8E2D9] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#F6F5F1] transition shadow-sm">
-                <Calendar size={14} className="text-[#FFD600]" /> {selectedMonth} <ChevronDown size={14} />
+              <input
+                type="month"
+                ref={monthInputRef}
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="absolute inset-0 w-0 h-0 opacity-0"
+              />
+              <button
+                onClick={() => monthInputRef.current?.showPicker()}
+                className="flex items-center gap-2 px-6 py-3.5 bg-white border border-[#E8E2D9] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-[#F6F5F1] transition shadow-sm"
+              >
+                <Calendar size={14} className="text-[#FFD600]" />{" "}
+                {selectedMonth} <ChevronDown size={14} />
               </button>
             </div>
 
-            <button 
-              onClick={() => {setIsModalOpen(true); setAddMethod(null);}}
+            <button
+              onClick={() => {
+                setIsModalOpen(true);
+                setAddMethod(null);
+                setEditingTrx(null);
+                setFormData({
+                  desc: "",
+                  type: "Income",
+                  amount: "",
+                  cat: "",
+                  date: today,
+                  idCategory: null,
+                });
+                resetScanState();
+              }}
               className="group flex items-center gap-2 px-6 py-3.5 bg-[#1A1A1A] text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all hover:bg-[#FFD600] hover:text-[#1A1A1A] shadow-lg"
             >
-              <Plus size={18} className="text-[#FFD600] group-hover:text-[#1A1A1A]" /> 
+              <Plus
+                size={18}
+                className="text-[#FFD600] group-hover:text-[#1A1A1A]"
+              />
               Add Transaction
             </button>
           </div>
@@ -267,7 +519,7 @@ export default function TransactionsPage() {
         {/* --- TABLE CONTENT --- */}
         <div className="overflow-x-auto min-h-[300px]">
           {loading ? (
-             <SkeletonTable rows={10} cols={6} />
+            <SkeletonTable rows={10} cols={6} />
           ) : (
             <table className="w-full text-left">
               <thead>
@@ -281,22 +533,59 @@ export default function TransactionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F6F5F1]">
-                {displayedTransactions.length > 0 ? displayedTransactions.map((trx) => (
-                  <tr key={trx.id} className="hover:bg-[#FDFCFB] transition group">
-                    <td className="px-6 py-6 text-sm font-medium text-[#7A746E]">{trx.date}</td>
-                    <td className="px-6 py-6 text-sm font-bold">{trx.desc}</td>
-                    <td className="px-6 py-6"><span className="bg-[#F6F5F1] px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">{trx.cat}</span></td>
-                    <td className={`px-6 py-6 text-[10px] font-black uppercase tracking-widest ${trx.type === "Expenses" ? "text-red-500" : "text-green-600"}`}>{trx.type}</td>
-                    <td className={`px-6 py-6 text-sm font-black tabular-nums ${trx.type === "Expenses" ? "text-red-500" : "text-[#1A1A1A]"}`}>
-                      {trx.type === "Expenses" ? "-" : ""}Rp {trx.amount.toLocaleString('id-ID')}
-                    </td>
-                    <td className="px-6 py-6 text-right space-x-2">
-                      <button onClick={() => openEditModal(trx)} className="p-2 hover:bg-[#FFD600] rounded-xl transition text-[#A3A3A3] hover:text-[#1A1A1A]"><Edit3 size={16} /></button>
-                      <button onClick={() => setItemToDelete(trx)} className="p-2 hover:bg-red-500 rounded-xl transition text-[#A3A3A3] hover:text-white"><Trash2 size={16} /></button>
+                {displayedTransactions.length > 0 ? (
+                  displayedTransactions.map((trx) => (
+                    <tr
+                      key={trx.id}
+                      className="hover:bg-[#FDFCFB] transition group"
+                    >
+                      <td className="px-6 py-6 text-sm font-medium text-[#7A746E]">
+                        {trx.date}
+                      </td>
+                      <td className="px-6 py-6 text-sm font-bold">
+                        {trx.desc}
+                      </td>
+                      <td className="px-6 py-6">
+                        <span className="bg-[#F6F5F1] px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">
+                          {trx.cat}
+                        </span>
+                      </td>
+                      <td
+                        className={`px-6 py-6 text-[10px] font-black uppercase tracking-widest ${trx.type === "Expenses" ? "text-red-500" : "text-green-600"}`}
+                      >
+                        {trx.type}
+                      </td>
+                      <td
+                        className={`px-6 py-6 text-sm font-black tabular-nums ${trx.type === "Expenses" ? "text-red-500" : "text-[#1A1A1A]"}`}
+                      >
+                        {trx.type === "Expenses" ? "-" : ""}Rp{" "}
+                        {trx.amount.toLocaleString("id-ID")}
+                      </td>
+                      <td className="px-6 py-6 text-right space-x-2">
+                        <button
+                          onClick={() => openEditModal(trx)}
+                          className="p-2 hover:bg-[#FFD600] rounded-xl transition text-[#A3A3A3] hover:text-[#1A1A1A]"
+                        >
+                          <Edit3 size={16} />
+                        </button>
+                        <button
+                          onClick={() => setItemToDelete(trx)}
+                          className="p-2 hover:bg-red-500 rounded-xl transition text-[#A3A3A3] hover:text-white"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td
+                      colSpan="6"
+                      className="py-20 text-center text-[#A3A3A3] italic"
+                    >
+                      No data found...
                     </td>
                   </tr>
-                )) : (
-                  <tr><td colSpan="6" className="py-20 text-center text-[#A3A3A3] italic">No data found...</td></tr>
                 )}
               </tbody>
             </table>
@@ -306,9 +595,11 @@ export default function TransactionsPage() {
         {/* --- PAGINATION --- */}
         {!loading && totalPages > 1 && (
           <div className="flex justify-between items-center pt-8 border-t border-[#F6F5F1]">
-            <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">{totalResults} Results</p>
+            <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">
+              {totalResults} Results
+            </p>
             <div className="flex gap-2">
-              {pageNumbers.map(num => (
+              {pageNumbers.map((num) => (
                 <button
                   key={num}
                   onClick={() => setCurrentPage(num)}
@@ -327,57 +618,215 @@ export default function TransactionsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-6 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-xl rounded-[40px] p-10 shadow-2xl relative animate-in zoom-in-95 overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-2 bg-[#FFD600]"></div>
-            <button onClick={closeModal} className="absolute top-8 right-8 p-2 hover:bg-gray-100 rounded-full"><X size={24}/></button>
+            <button
+              onClick={closeModal}
+              className="absolute top-8 right-8 p-2 hover:bg-gray-100 rounded-full"
+            >
+              <X size={24} />
+            </button>
             {!addMethod ? (
               <div className="space-y-8 py-4">
-                <h2 className="text-3xl font-black tracking-tighter text-center">Choose Method</h2>
+                <h2 className="text-3xl font-black tracking-tighter text-center">
+                  Choose Method
+                </h2>
                 <div className="grid grid-cols-2 gap-4">
-                  <button onClick={() => setAddMethod('scan')} className="p-8 border-2 border-[#F6F5F1] hover:border-[#FFD600] rounded-[32px] transition-all flex flex-col items-center gap-4 group">
-                    <Camera size={32} className="group-hover:text-[#FFD600]" /><p className="font-black uppercase tracking-widest text-xs">Scan Receipt</p>
+                  <button
+                    onClick={() => setAddMethod("scan")}
+                    className="p-8 border-2 border-[#F6F5F1] hover:border-[#FFD600] rounded-[32px] transition-all flex flex-col items-center gap-4 group"
+                  >
+                    <Camera size={32} className="group-hover:text-[#FFD600]" />
+                    <p className="font-black uppercase tracking-widest text-xs">
+                      Scan Receipt
+                    </p>
                   </button>
-                  <button onClick={() => setAddMethod('manual')} className="p-8 border-2 border-[#F6F5F1] hover:border-[#FFD600] rounded-[32px] transition-all flex flex-col items-center gap-4 group">
-                    <Keyboard size={32} className="group-hover:text-[#FFD600]" /><p className="font-black uppercase tracking-widest text-xs">Manual Input</p>
+                  <button
+                    onClick={() => setAddMethod("manual")}
+                    className="p-8 border-2 border-[#F6F5F1] hover:border-[#FFD600] rounded-[32px] transition-all flex flex-col items-center gap-4 group"
+                  >
+                    <Keyboard
+                      size={32}
+                      className="group-hover:text-[#FFD600]"
+                    />
+                    <p className="font-black uppercase tracking-widest text-xs">
+                      Manual Input
+                    </p>
                   </button>
                 </div>
               </div>
+            ) : addMethod === "scan" ? (
+              <div className="animate-in slide-in-from-right-4 space-y-5">
+                <button
+                  onClick={() => setAddMethod(null)}
+                  className="text-[10px] font-black uppercase tracking-widest text-[#FFD600] hover:underline"
+                >
+                  ← Back
+                </button>
+                <h2 className="text-2xl font-black tracking-tighter">
+                  Scan Receipt
+                </h2>
+                <p className="text-sm font-medium text-[#7A746E]">
+                  Upload file PNG atau JPG/JPEG untuk mengisi form transaksi
+                  secara otomatis.
+                </p>
+
+                <label className="block border-2 border-dashed border-[#E8E2D9] rounded-[28px] p-8 text-center hover:border-[#FFD600] transition cursor-pointer bg-[#FDFCFB]">
+                  <input
+                    type="file"
+                    accept=".png,.jpg,.jpeg"
+                    className="hidden"
+                    onChange={handleReceiptSelect}
+                  />
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-14 h-14 rounded-2xl bg-[#FFD600]/20 flex items-center justify-center text-[#1A1A1A]">
+                      <UploadCloud size={24} />
+                    </div>
+                    <p className="text-xs font-black uppercase tracking-widest">
+                      Choose Receipt File
+                    </p>
+                    <p className="text-[11px] text-[#A3A3A3] font-medium">
+                      Max 4MB • PNG/JPG/JPEG
+                    </p>
+                  </div>
+                </label>
+
+                {selectedReceiptFile && (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-2xl bg-[#F6F5F1] text-sm font-semibold text-[#1A1A1A]">
+                    <ImageIcon size={16} className="text-[#A3A3A3]" />
+                    <span className="truncate">{selectedReceiptFile.name}</span>
+                  </div>
+                )}
+
+                {scanError && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">
+                    {scanError}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleScanReceipt}
+                  disabled={!selectedReceiptFile || isScanning}
+                  className="w-full py-4 bg-[#1A1A1A] text-[#FFD600] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:bg-black transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Scanning...
+                    </>
+                  ) : (
+                    "Scan Receipt"
+                  )}
+                </button>
+              </div>
             ) : (
               <div className="animate-in slide-in-from-right-4">
-                <button onClick={() => setAddMethod(null)} className="text-[10px] font-black uppercase tracking-widest text-[#FFD600] mb-4 hover:underline">← Back</button>
-                <h2 className="text-2xl font-black mb-6 tracking-tighter">{editingTrx ? "Edit" : "New"} Transaction</h2>
+                <button
+                  onClick={() => setAddMethod(null)}
+                  className="text-[10px] font-black uppercase tracking-widest text-[#FFD600] mb-4 hover:underline"
+                >
+                  ← Back
+                </button>
+                <h2 className="text-2xl font-black mb-6 tracking-tighter">
+                  {editingTrx ? "Edit" : "New"} Transaction
+                </h2>
                 <form onSubmit={handleSave} className="grid grid-cols-2 gap-4">
                   <div className="col-span-2 space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Description</label>
-                    <input required value={formData.desc} onChange={(e) => setFormData({...formData, desc: e.target.value})} type="text" className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#FFD600]" />
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
+                      Description
+                    </label>
+                    <input
+                      required
+                      value={formData.desc}
+                      onChange={(e) =>
+                        setFormData({ ...formData, desc: e.target.value })
+                      }
+                      type="text"
+                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#FFD600]"
+                    />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Type</label>
-                    <select value={formData.type} onChange={(e) => setFormData({...formData, type: e.target.value})} className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-4 text-sm font-semibold outline-none"><option value="Income">Income</option><option value="Expenses">Expenses</option></select>
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
+                      Type
+                    </label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) =>
+                        setFormData({ ...formData, type: e.target.value })
+                      }
+                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-4 text-sm font-semibold outline-none"
+                    >
+                      <option value="Income">Income</option>
+                      <option value="Expenses">Expenses</option>
+                    </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Amount (Rp)</label>
-                    <input required value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} type="number" className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none" />
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
+                      Amount (Rp)
+                    </label>
+                    <input
+                      required
+                      value={formData.amount}
+                      onChange={(e) =>
+                        setFormData({ ...formData, amount: e.target.value })
+                      }
+                      type="number"
+                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none"
+                    />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Category</label>
-                    <input required value={formData.cat} onChange={(e) => {
-                      const inputVal = e.target.value;
-                      const matchId = resolveCategoryId(inputVal, formData.type);
-                      setFormData({...formData, cat: inputVal, idCategory: matchId});
-                    }} type="text" list="transaction-category-options" className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none" />
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
+                      Category
+                    </label>
+                    <input
+                      required
+                      value={formData.cat}
+                      onChange={(e) => {
+                        const inputVal = e.target.value;
+                        const matchId = resolveCategoryId(
+                          inputVal,
+                          formData.type,
+                        );
+                        setFormData({
+                          ...formData,
+                          cat: inputVal,
+                          idCategory: matchId,
+                        });
+                      }}
+                      type="text"
+                      list="transaction-category-options"
+                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none"
+                    />
                     <datalist id="transaction-category-options">
                       {(rawCategories || [])
-                        .filter((cat) => String(cat.type || "") === normalizeTypeToApi(formData.type))
+                        .filter(
+                          (cat) =>
+                            String(cat.type || "") ===
+                            normalizeTypeToApi(formData.type),
+                        )
                         .map((cat) => (
                           <option key={cat.idCategory} value={cat.name} />
                         ))}
                     </datalist>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">Date</label>
-                    <input required value={formData.date} onChange={(e) => setFormData({...formData, date: e.target.value})} type="date" className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none" />
+                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
+                      Date
+                    </label>
+                    <input
+                      required
+                      value={formData.date}
+                      onChange={(e) =>
+                        setFormData({ ...formData, date: e.target.value })
+                      }
+                      type="date"
+                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none"
+                    />
                   </div>
-                  <button type="submit" className="col-span-2 py-4 bg-[#1A1A1A] text-[#FFD600] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl mt-4 hover:bg-black transition-all">
-                    {editingTrx ? "Update" : "Save"} Transaction
+                  <button
+                    type="submit"
+                    className="col-span-2 py-4 bg-[#1A1A1A] text-[#FFD600] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl mt-4 hover:bg-black transition-all"
+                  >
+                    {editingTrx ? "Update" : "New"} Transaction
                   </button>
                 </form>
               </div>
@@ -391,28 +840,34 @@ export default function TransactionsPage() {
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-6 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl relative overflow-hidden text-center animate-in zoom-in-95 duration-300">
             <div className="absolute top-0 left-0 w-full h-2 bg-red-500/80"></div>
-            
+
             <div className="flex flex-col items-center gap-5">
               <div className="w-20 h-20 bg-red-50 rounded-[30px] flex items-center justify-center text-red-500">
                 <AlertCircle size={40} />
               </div>
-              
+
               <div className="space-y-2">
-                <h3 className="text-2xl font-black tracking-tighter text-[#1A1A1A]">Hapus Data?</h3>
+                <h3 className="text-2xl font-black tracking-tighter text-[#1A1A1A]">
+                  Hapus Data?
+                </h3>
                 <p className="text-sm font-medium text-[#A3A3A3] leading-relaxed">
-                  Kamu yakin ingin menghapus transaksi <span className="font-bold text-[#1A1A1A]">"{itemToDelete.desc}"</span>? Data ini tidak bisa dikembalikan.
+                  Kamu yakin ingin menghapus transaksi{" "}
+                  <span className="font-bold text-[#1A1A1A]">
+                    "{itemToDelete.desc}"
+                  </span>
+                  ? Data ini tidak bisa dikembalikan.
                 </p>
               </div>
 
               <div className="flex gap-3 w-full pt-4">
-                <button 
-                  onClick={() => setItemToDelete(null)} 
+                <button
+                  onClick={() => setItemToDelete(null)}
                   className="flex-1 py-4 bg-[#F6F5F1] text-[#A3A3A3] font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-gray-100 transition-all border border-[#E8E2D9]"
                 >
                   Batal
                 </button>
-                <button 
-                  onClick={confirmDelete} 
+                <button
+                  onClick={confirmDelete}
                   className="flex-1 py-4 bg-red-500 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-lg shadow-red-200 hover:bg-red-600 hover:scale-[1.02] transition-all"
                 >
                   Ya, Hapus
