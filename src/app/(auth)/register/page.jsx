@@ -9,12 +9,15 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8
 
 function Register() {
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showOtp, setShowOtp] = useState(false);
+  const [otp, setOtp] = useState("");
   const router = useRouter();
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
@@ -41,16 +44,15 @@ function Register() {
     setLoading(true);
 
     try {
+      const payload = { name, email, password };
+      if (phone) payload.phone = phone;
+
       const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -60,13 +62,48 @@ function Register() {
         return;
       }
 
-      // Registrasi berhasil
-      setSuccess(true);
+      // Registrasi berhasil (202 Accepted), transisi ke form OTP
+      setShowOtp(true);
+    } catch (err) {
+      setError("Connection error. Please try again.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/auth/register/verify`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          code: otp,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.message || "Invalid or expired verification code");
+        return;
+      }
+
+      // Verifikasi berhasil
+      if (data.accessToken) localStorage.setItem("accessToken", data.accessToken);
+      if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
       
-      // Auto redirect setelah 2 detik
+      setSuccess(true);
       setTimeout(() => {
-        router.push("/login");
-      }, 2000);
+        router.push("/dashboard");
+      }, 1500);
     } catch (err) {
       setError("Connection error. Please try again.");
       console.error(err);
@@ -82,21 +119,15 @@ function Register() {
         <div className="modal-overlay">
           <div className="modal-content">
             <div className="modal-icon">✓</div>
-            <h2>Registration Successful!</h2>
-            <p>Akun kamu berhasil dibuat. Silakan login.</p>
-            <button
-              onClick={() => router.push("/login")}
-              className="modal-btn"
-            >
-              Go to Login
-            </button>
+            <h2>Verification Successful!</h2>
+            <p>Akun kamu berhasil diverifikasi. Mengarahkan ke dashboard...</p>
           </div>
         </div>
       )}
 
       <div className="register-left">
           <h1 className="brand">Finansialin</h1>
-          <p className="subtitle">Sign up to continue</p>
+          <p className="subtitle">{showOtp ? "Verifikasi Email Kamu" : "Sign up to continue"}</p>
 
           {error && (
             <div className="error-message" style={{ color: "red", marginBottom: "1rem" }}>
@@ -104,19 +135,46 @@ function Register() {
             </div>
           )}
 
-          <form className="register-form" onSubmit={handleSubmit} autoComplete="off">
-            <label>Name</label>
-            <input
-              type="text"
-              placeholder="Enter your name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              autoComplete="off"
-              name="register-name"
-            />
+          {showOtp ? (
+            <form className="register-form" onSubmit={handleVerifyOtp} autoComplete="off">
+              <label>Kode Verifikasi</label>
+              <input
+                type="text"
+                placeholder="Masukkan 6 digit kode OTP"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                required
+                maxLength={6}
+                autoComplete="off"
+              />
+              <button type="submit" className="btn-signup" disabled={loading}>
+                {loading ? "Verifying..." : "Verify Code"}
+              </button>
+            </form>
+          ) : (
+            <form className="register-form" onSubmit={handleSubmit} autoComplete="off">
+              <label>Name</label>
+              <input
+                type="text"
+                placeholder="Enter your name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                autoComplete="off"
+                name="register-name"
+              />
 
-            <label htmlFor="email">Email</label>
+              <label>Phone (Optional)</label>
+              <input
+                type="tel"
+                placeholder="Enter your phone number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                autoComplete="off"
+                name="register-phone"
+              />
+
+              <label htmlFor="email">Email</label>
             <input
               id="email"
               type="email"
@@ -176,10 +234,11 @@ function Register() {
               </div>
             )}
 
-            <button type="submit" className="btn-signup" disabled={loading}>
-              {loading ? "Signing Up..." : "Sign Up"}
-            </button>
-          </form>
+              <button type="submit" className="btn-signup" disabled={loading}>
+                {loading ? "Signing Up..." : "Sign Up"}
+              </button>
+            </form>
+          )}
         </div>
 
       <div className="register-right">
