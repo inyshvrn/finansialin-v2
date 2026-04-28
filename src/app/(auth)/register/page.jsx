@@ -97,8 +97,8 @@ function Register() {
       }
 
       // Verifikasi berhasil
-      if (data.accessToken) localStorage.setItem("accessToken", data.accessToken);
-      if (data.refreshToken) localStorage.setItem("refreshToken", data.refreshToken);
+      if (data.access_token || data.accessToken) localStorage.setItem("access_token", data.access_token || data.accessToken);
+      if (data.refresh_token || data.refreshToken) localStorage.setItem("refresh_token", data.refresh_token || data.refreshToken);
       
       setSuccess(true);
       setTimeout(() => {

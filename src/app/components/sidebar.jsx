@@ -50,7 +50,7 @@ const Sidebar = () => {
               width={190} 
               height={50} 
               priority
-              className="object-contain cursor-pointer"
+              className="object-contain cursor-pointer w-auto h-auto"
             />
           </Link>
         </div>
