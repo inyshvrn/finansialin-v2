@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import "../style/register.css";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+import { apiPost } from "@/lib/apiClient";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 function Register() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -47,26 +48,12 @@ function Register() {
       const payload = { name, email, password };
       if (phone) payload.phone = phone;
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Registration failed");
-        return;
-      }
+      await apiPost('/api/auth/register', payload);
 
       // Registrasi berhasil (202 Accepted), transisi ke form OTP
       setShowOtp(true);
     } catch (err) {
-      setError("Connection error. Please try again.");
-      console.error(err);
+      setError(err.message || "Connection error. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -78,23 +65,10 @@ function Register() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/register/verify`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          code: otp,
-        }),
+      const data = await apiPost('/api/auth/register/verify', {
+        email,
+        code: otp,
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.message || "Invalid or expired verification code");
-        return;
-      }
 
       // Verifikasi berhasil
       if (data.access_token || data.accessToken) localStorage.setItem("access_token", data.access_token || data.accessToken);

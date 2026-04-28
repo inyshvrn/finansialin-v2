@@ -1,12 +1,12 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { Check, AlertCircle } from "lucide-react";
-import { apiRequest } from "@/lib/api";
+import { useApi } from "@/hooks/useApi";
+import { apiPut } from "@/lib/apiClient";
 
 export default function Preferences() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [preferences, setPreferences] = useState({
     theme: "light",
@@ -16,30 +16,19 @@ export default function Preferences() {
     weeklySummary: true,
   });
 
-  // Load preferences dari backend
-  useEffect(() => {
-    const loadPreferences = async () => {
-      setLoading(true);
-      try {
-        const data = await apiRequest("/api/users/preferences");
-        // Map API response ke state
-        setPreferences({
-          theme: data?.theme || "light",
-          hideBalance: data?.hideBalance || false,
-          dailyReminder: data?.dailyReminder !== false,
-          budgetAlert: data?.budgetAlert !== false,
-          weeklySummary: data?.weeklySummary !== false,
-        });
-      } catch (err) {
-        setError(err.message || "Gagal memuat preferensi");
-        console.error("Preferences error:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { data: prefData, isLoading: loading, error: apiError } = useApi("/api/users/preferences");
 
-    loadPreferences();
-  }, []);
+  useEffect(() => {
+    if (prefData) {
+      setPreferences({
+        theme: prefData.theme || "light",
+        hideBalance: prefData.hideBalance || false,
+        dailyReminder: prefData.dailyReminder !== false,
+        budgetAlert: prefData.budgetAlert !== false,
+        weeklySummary: prefData.weeklySummary !== false,
+      });
+    }
+  }, [prefData]);
 
   // Simpan preferences ke backend
   const handleApplySettings = (e) => {
@@ -49,15 +38,12 @@ export default function Preferences() {
 
     const savePreferences = async () => {
       try {
-        await apiRequest("/api/users/preferences", {
-          method: "PUT",
-          body: {
-            theme: preferences.theme,
-            hideBalance: preferences.hideBalance,
-            dailyReminder: preferences.dailyReminder,
-            budgetAlert: preferences.budgetAlert,
-            weeklySummary: preferences.weeklySummary,
-          },
+        await apiPut("/api/users/preferences", {
+          theme: preferences.theme,
+          hideBalance: preferences.hideBalance,
+          dailyReminder: preferences.dailyReminder,
+          budgetAlert: preferences.budgetAlert,
+          weeklySummary: preferences.weeklySummary,
         });
 
         setIsSuccess(true);

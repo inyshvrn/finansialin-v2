@@ -13,14 +13,15 @@ import {
   Briefcase,
   GraduationCap
 } from 'lucide-react';
-import { apiRequest } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
+import { apiPost } from '@/lib/apiClient';
 
 const Header = () => {
   const router = useRouter();
   
   // UX States
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchQuery, setSearchQuery] = useState(""); // State baru untuk search
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -36,49 +37,44 @@ const Header = () => {
     avatar: "U",
   });
 
-  useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const profile = await apiRequest('/api/auth/profile');
-        const name = profile?.name || 'User';
+  const { data: profile } = useApi('/api/auth/profile');
 
-        setUserData((prev) => ({
-          ...prev,
-          name,
-          email: profile?.email || '-',
-          avatar: name.charAt(0).toUpperCase() || 'U',
-        }));
-      } catch {
-        const localUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
-        if (localUser) {
-          try {
-            const parsed = JSON.parse(localUser);
-            const name = parsed?.name || 'User';
-            setUserData((prev) => ({
-              ...prev,
-              name,
-              email: parsed?.email || '-',
-              avatar: name.charAt(0).toUpperCase() || 'U',
-            }));
-          } catch {
-            // Ignore invalid local storage payload.
-          }
+  useEffect(() => {
+    if (profile) {
+      const name = profile?.name || 'User';
+      setUserData((prev) => ({
+        ...prev,
+        name,
+        email: profile?.email || '-',
+        avatar: name.charAt(0).toUpperCase() || 'U',
+      }));
+    } else {
+      const localUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+      if (localUser) {
+        try {
+          const parsed = JSON.parse(localUser);
+          const name = parsed?.name || 'User';
+          setUserData((prev) => ({
+            ...prev,
+            name,
+            email: parsed?.email || '-',
+            avatar: name.charAt(0).toUpperCase() || 'U',
+          }));
+        } catch {
+          // Ignore invalid local storage payload.
         }
       }
-    };
-
-    loadProfile();
-  }, []);
+    }
+  }, [profile]);
 
   // --- ACTIONS ---
 
-  // Fungsi Action Search
   const handleSearch = (e) => {
-    e.preventDefault(); // Mencegah page reload
+    e.preventDefault();
     if (searchQuery.trim()) {
       alert(`Mencari data untuk: "${searchQuery}"\n\n(Nantinya ini bisa dihubungkan ke fitur filter atau routing halaman pencarian)`);
-      setSearchQuery(""); // Bersihkan input setelah search
-      setIsSearchFocused(false); // Kecilkan kembali bar
+      setSearchQuery("");
+      setIsSearchFocused(false);
     }
   };
 
@@ -87,7 +83,7 @@ const Header = () => {
 
     const doLogout = async () => {
       try {
-        await apiRequest('/api/auth/logout', { method: 'POST' });
+        await apiPost('/api/auth/logout');
       } catch {
         // Continue with local logout fallback.
       } finally {

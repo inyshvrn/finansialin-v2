@@ -1,14 +1,15 @@
 "use client";
-import React, { useEffect, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
     Search, Bell, Pencil, ChevronDown,
     CreditCard, Wallet, Banknote,
     Plane, Car, AlertCircle
 } from 'lucide-react';
-import { apiRequest } from '@/lib/api';
+import { useApi } from '@/hooks/useApi';
 import Header from '../../components/header';
+import { SkeletonCard, SkeletonTable, SkeletonText } from '@/components/ui/Skeleton';
 
-const BankCard = ({ type, icon: Icon, amount, color }) => (
+const BankCard = React.memo(({ type, icon: Icon, amount, color }) => (
     <div className="bg-white p-7 rounded-[32px] shadow-sm border border-[#E8E2D9] flex flex-col justify-between h-48 relative overflow-hidden group hover:shadow-md transition-all">
         <div className="absolute inset-0 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity pointer-events-none"
             style={{
@@ -44,9 +45,10 @@ const BankCard = ({ type, icon: Icon, amount, color }) => (
             </button>
         </div>
     </div>
-);
+));
+BankCard.displayName = "BankCard";
 
-const GoalItem = ({ name, icon: Icon, progress }) => (
+const GoalItem = React.memo(({ name, icon: Icon, progress }) => (
     <div className="flex gap-4 items-center">
         <div className="p-3 bg-[#F6F5F1] rounded-2xl"><Icon size={20} /></div>
         <div className="flex-1">
@@ -62,89 +64,20 @@ const GoalItem = ({ name, icon: Icon, progress }) => (
             </div>
         </div>
     </div>
-);
+));
+GoalItem.displayName = "GoalItem";
 
 export default function DashboardPage() {
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [userProfile, setUserProfile] = useState(null);
-    const [fundingSources, setFundingSources] = useState([]);
-    const [transactions, setTransactions] = useState([]);
-    const [incomeData, setIncomeData] = useState({});
-    const [budgets, setBudgets] = useState([]);
-    const [categories, setCategories] = useState([]);
+    const { data: userProfile, isLoading: isProfileLoading, error: profileError } = useApi('/api/auth/profile');
+    const { data: fundingSources, isLoading: isFundingLoading, error: fundingError } = useApi('/api/funding-sources');
+    const { data: rawTxns, isLoading: isTxnsLoading, error: txnsError } = useApi('/api/transactions');
+    const { data: rawBudgets, isLoading: isBudgetLoading, error: budgetError } = useApi('/api/budgets');
+    const { data: categories, isLoading: isCatLoading, error: catError } = useApi('/api/categories');
 
-    useEffect(() => {
-        const loadDashboardData = async () => {
-            setLoading(true);
-            setError("");
-            
-            try {
-                const [profile, fundingSrcs, txns, budgetList, catList] = await Promise.all([
-                    apiRequest('/api/auth/profile'),
-                    apiRequest('/api/funding-sources'),
-                    apiRequest('/api/transactions'),
-                    apiRequest('/api/budgets'),
-                    apiRequest('/api/categories'),
-                ]);
+    const isLoading = isProfileLoading || isFundingLoading || isTxnsLoading || isBudgetLoading || isCatLoading;
+    const error = profileError || fundingError || txnsError || budgetError || catError;
 
-                setUserProfile(profile);
-                setFundingSources(fundingSrcs || []);
-                setCategories(catList || []);
-
-                // Process transactions - ambil 3 terakhir
-                const txnsArray = (txns || []).slice(0, 3);
-                const categoryMap = new Map((catList || []).map(c => [c.idCategory, c.name]));
-                
-                const processedTxns = txnsArray.map(t => ({
-                    receiver: t.description || 'Unknown',
-                    type: categoryMap.get(t.idCategory) || t.type || 'Other',
-                    date: t.date ? new Date(t.date).toLocaleDateString('id-ID', { 
-                        day: '2-digit', 
-                        month: 'short', 
-                        year: 'numeric' 
-                    }) : 'Unknown',
-                    amount: `Rp${Number(t.amount || 0).toLocaleString('id-ID')}`
-                }));
-                setTransactions(processedTxns);
-
-                // Process budgets
-                const budgetList_ = (budgetList || []).slice(0, 2);
-                setBudgets(budgetList_);
-
-                // Calculate income trends (last 6 months)
-                const last6Months = getLastSixMonths();
-                const income = {};
-                
-                last6Months.forEach(month => {
-                    income[month] = 0;
-                });
-
-                (txns || []).forEach(t => {
-                    if (t.date) {
-                        const monthKey = t.date.substring(0, 7);
-                        if (income.hasOwnProperty(monthKey)) {
-                            if (t.type === 'income') {
-                                income[monthKey] = (income[monthKey] || 0) + Number(t.amount || 0);
-                            }
-                        }
-                    }
-                });
-
-                setIncomeData(income);
-
-            } catch (err) {
-                setError(err.message || 'Failed to load dashboard data');
-                console.error('Dashboard error:', err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadDashboardData();
-    }, []);
-
-    const getLastSixMonths = () => {
+    const last6Months = useMemo(() => {
         const months = [];
         const now = new Date();
         for (let i = 5; i >= 0; i--) {
@@ -152,40 +85,56 @@ export default function DashboardPage() {
             months.push(d.toISOString().substring(0, 7));
         }
         return months;
-    };
+    }, []);
 
-    const formatCurrency = (value) => {
-        return `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
-    };
+    const incomeData = useMemo(() => {
+        const income = {};
+        last6Months.forEach(month => { income[month] = 0; });
+        (rawTxns || []).forEach(t => {
+            if (t.date) {
+                const monthKey = t.date.substring(0, 7);
+                if (income.hasOwnProperty(monthKey) && t.type === 'income') {
+                    income[monthKey] = (income[monthKey] || 0) + Number(t.amount || 0);
+                }
+            }
+        });
+        return income;
+    }, [rawTxns, last6Months]);
 
-    const getChartHeights = () => {
-        const last6Months = getLastSixMonths();
+    const transactions = useMemo(() => {
+        const txnsArray = (rawTxns || []).slice(0, 3);
+        const categoryMap = new Map((categories || []).map(c => [c.idCategory, c.name]));
+        return txnsArray.map(t => ({
+            receiver: t.description || 'Unknown',
+            type: categoryMap.get(t.idCategory) || t.type || 'Other',
+            date: t.date ? new Date(t.date).toLocaleDateString('id-ID', { 
+                day: '2-digit', month: 'short', year: 'numeric' 
+            }) : 'Unknown',
+            amount: `Rp${Number(t.amount || 0).toLocaleString('id-ID')}`
+        }));
+    }, [rawTxns, categories]);
+
+    const budgets = useMemo(() => {
+        return (rawBudgets || []).slice(0, 2);
+    }, [rawBudgets]);
+
+    const formatCurrency = (value) => `Rp ${Number(value || 0).toLocaleString('id-ID')}`;
+
+    const chartHeights = useMemo(() => {
         const incomeValues = last6Months.map(m => incomeData[m] || 0);
         const maxValue = Math.max(...incomeValues, 1);
         return incomeValues.map(v => (v / maxValue) * 100);
-    };
+    }, [incomeData, last6Months]);
 
-    const getMonthLabels = () => {
-        return getLastSixMonths().map(m => {
-            const [year, month] = m.split('-');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const monthLabels = useMemo(() => {
+        return last6Months.map(m => {
+            const [, month] = m.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             return monthNames[parseInt(month) - 1];
         });
-    };
+    }, [last6Months]);
 
-    const totalIncome = Object.values(incomeData).reduce((a, b) => a + b, 0);
-
-    if (loading) {
-        return (
-            <div className="space-y-10">
-                <Header name={userProfile?.name || "Loading..."} />
-                <div className="text-center py-20">
-                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#FFD600]"></div>
-                    <p className="mt-4 text-[#A3A3A3]">Loading dashboard...</p>
-                </div>
-            </div>
-        );
-    }
+    const totalIncome = useMemo(() => Object.values(incomeData).reduce((a, b) => a + b, 0), [incomeData]);
 
     if (error) {
         return (
@@ -206,10 +155,16 @@ export default function DashboardPage() {
         <div className="space-y-10">
             <Header name={userProfile?.name || "User"} />
 
-            {/* Row Kartu Bank dengan Pattern */}
+            {/* Row Kartu Bank */}
             <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {fundingSources.length > 0 ? (
-                    fundingSources.map((source, idx) => (
+                {isLoading ? (
+                    <>
+                        <SkeletonCard />
+                        <SkeletonCard />
+                        <SkeletonCard />
+                    </>
+                ) : (fundingSources || []).length > 0 ? (
+                    (fundingSources || []).map((source, idx) => (
                         <BankCard
                             key={idx}
                             type={source.name || `Source ${idx + 1}`}
@@ -220,18 +175,9 @@ export default function DashboardPage() {
                     ))
                 ) : (
                     <>
-                        <BankCard
-                            type="MBanking" icon={CreditCard}
-                            amount="Rp0" color="#00529C"
-                        />
-                        <BankCard
-                            type="Emoney" icon={Wallet}
-                            amount="Rp0" color="#FFD600"
-                        />
-                        <BankCard
-                            type="Cash" icon={Banknote}
-                            amount="Rp0" color="#1A1A1A"
-                        />
+                        <BankCard type="MBanking" icon={CreditCard} amount="Rp0" color="#00529C" />
+                        <BankCard type="Emoney" icon={Wallet} amount="Rp0" color="#FFD600" />
+                        <BankCard type="Cash" icon={Banknote} amount="Rp0" color="#1A1A1A" />
                     </>
                 )}
             </section>
@@ -245,14 +191,18 @@ export default function DashboardPage() {
                     </div>
 
                     <div className="h-64 flex items-end justify-between gap-3 px-2 relative z-10">
-                        {getChartHeights().map((height, i) => (
+                        {isLoading ? (
+                            <div className="w-full h-full flex items-end">
+                                <SkeletonText lines={1} className="w-full h-1/2" />
+                            </div>
+                        ) : chartHeights.map((height, i) => (
                             <div key={i} className="flex-1 group relative">
                                 <div
                                     className="bg-[#F6F5F1] group-hover:bg-[#FFD600] transition-all rounded-t-2xl w-full"
                                     style={{ height: `${Math.max(height, 5)}%` }}
                                 ></div>
                                 <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 text-[9px] text-[#A3A3A3] font-black uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity">
-                                    {getMonthLabels()[i]}
+                                    {monthLabels[i]}
                                 </span>
                             </div>
                         ))}
@@ -261,21 +211,29 @@ export default function DashboardPage() {
 
                 <div className="col-span-12 lg:col-span-4 bg-white p-8 rounded-[32px] border border-[#E8E2D9] shadow-sm flex flex-col items-center justify-between">
                     <h3 className="w-full text-sm font-black uppercase tracking-tighter mb-8">Activity</h3>
-                    <div className="relative w-44 h-44">
-                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
-                            <circle cx="60" cy="60" r="50" stroke="#F6F5F1" strokeWidth="12" fill="transparent" />
-                            <circle cx="60" cy="60" r="50" stroke="#FFD600" strokeWidth="12" fill="transparent" strokeDasharray="314" strokeDashoffset="100" strokeLinecap="round" />
-                            <circle cx="60" cy="60" r="50" stroke="#1A1A1A" strokeWidth="12" fill="transparent" strokeDasharray="314" strokeDashoffset="260" strokeLinecap="round" />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                            <span className="text-xl font-black leading-tight text-[#1A1A1A]">{formatCurrency(totalIncome)}</span>
-                            <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Income</span>
+                    {isLoading ? (
+                        <div className="w-full h-full flex items-center justify-center">
+                             <div className="w-44 h-44 rounded-full bg-gray-200 animate-pulse"></div>
                         </div>
-                    </div>
-                    <div className="w-full mt-6 flex justify-around text-[10px] font-black uppercase tracking-tighter">
-                        <div className="flex items-center gap-2 text-[#7A746E]"><div className="w-2 h-2 rounded-full bg-[#FFD600]"></div> Income</div>
-                        <div className="flex items-center gap-2 text-[#7A746E]"><div className="w-2 h-2 rounded-full bg-[#1A1A1A]"></div> Outcome</div>
-                    </div>
+                    ) : (
+                        <>
+                            <div className="relative w-44 h-44">
+                                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 120 120">
+                                    <circle cx="60" cy="60" r="50" stroke="#F6F5F1" strokeWidth="12" fill="transparent" />
+                                    <circle cx="60" cy="60" r="50" stroke="#FFD600" strokeWidth="12" fill="transparent" strokeDasharray="314" strokeDashoffset="100" strokeLinecap="round" />
+                                    <circle cx="60" cy="60" r="50" stroke="#1A1A1A" strokeWidth="12" fill="transparent" strokeDasharray="314" strokeDashoffset="260" strokeLinecap="round" />
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                                    <span className="text-xl font-black leading-tight text-[#1A1A1A]">{formatCurrency(totalIncome)}</span>
+                                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Income</span>
+                                </div>
+                            </div>
+                            <div className="w-full mt-6 flex justify-around text-[10px] font-black uppercase tracking-tighter">
+                                <div className="flex items-center gap-2 text-[#7A746E]"><div className="w-2 h-2 rounded-full bg-[#FFD600]"></div> Income</div>
+                                <div className="flex items-center gap-2 text-[#7A746E]"><div className="w-2 h-2 rounded-full bg-[#1A1A1A]"></div> Outcome</div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </section>
 
@@ -283,28 +241,32 @@ export default function DashboardPage() {
             <section className="grid grid-cols-12 gap-6">
                 <div className="col-span-12 lg:col-span-8 bg-white p-8 rounded-[32px] border border-[#E8E2D9] shadow-sm">
                     <h3 className="text-sm font-black uppercase tracking-tighter mb-8">Transaction history</h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                            <thead className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest border-b border-[#F6F5F1]">
-                                <tr>
-                                    <th className="text-left pb-4">Receiver</th>
-                                    <th className="text-left pb-4">Type</th>
-                                    <th className="text-left pb-4">Date</th>
-                                    <th className="text-right pb-4">Amount</th>
-                                </tr>
-                            </thead>
-                            <tbody className="font-bold text-[#1A1A1A]">
-                                {transactions.map((trx, i) => (
-                                    <tr key={i} className="border-b border-[#F6F5F1] last:border-0 hover:bg-[#FDFCFB] transition-colors group">
-                                        <td className="py-5">{trx.receiver}</td>
-                                        <td className="py-5 text-[#A3A3A3] font-medium">{trx.type}</td>
-                                        <td className="py-5 font-medium text-[#7A746E]">{trx.date}</td>
-                                        <td className="py-5 text-right font-black">{trx.amount}</td>
+                    {isLoading ? (
+                        <SkeletonTable rows={3} cols={4} />
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest border-b border-[#F6F5F1]">
+                                    <tr>
+                                        <th className="text-left pb-4">Receiver</th>
+                                        <th className="text-left pb-4">Type</th>
+                                        <th className="text-left pb-4">Date</th>
+                                        <th className="text-right pb-4">Amount</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="font-bold text-[#1A1A1A]">
+                                    {transactions.map((trx, i) => (
+                                        <tr key={i} className="border-b border-[#F6F5F1] last:border-0 hover:bg-[#FDFCFB] transition-colors group">
+                                            <td className="py-5">{trx.receiver}</td>
+                                            <td className="py-5 text-[#A3A3A3] font-medium">{trx.type}</td>
+                                            <td className="py-5 font-medium text-[#7A746E]">{trx.date}</td>
+                                            <td className="py-5 text-right font-black">{trx.amount}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
 
                 <div className="col-span-12 lg:col-span-4 bg-white p-8 rounded-[32px] border border-[#E8E2D9] shadow-sm">
@@ -313,9 +275,14 @@ export default function DashboardPage() {
                         <button className="bg-[#FFD600] hover:bg-[#1A1A1A] hover:text-white transition-all text-[#1A1A1A] text-[10px] font-black px-4 py-2 rounded-full shadow-sm">Add</button>
                     </div>
                     <div className="space-y-7">
-                        {budgets.length > 0 ? (
+                        {isLoading ? (
+                            <>
+                                <SkeletonText lines={2} className="mb-4" />
+                                <SkeletonText lines={2} />
+                            </>
+                        ) : budgets.length > 0 ? (
                             budgets.map((budget, idx) => {
-                                const categoryName = categories.find(c => c.idCategory === budget.idCategory)?.name || 'Budget Goal';
+                                const categoryName = categories?.find(c => c.idCategory === budget.idCategory)?.name || 'Budget Goal';
                                 const percent = Math.round((Number(budget.spent || 0) / Number(budget.amount || 1)) * 100);
                                 return (
                                     <GoalItem key={idx} name={categoryName} icon={idx === 0 ? Plane : Car} progress={percent} />

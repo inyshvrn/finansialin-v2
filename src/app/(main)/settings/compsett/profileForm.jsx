@@ -3,7 +3,8 @@ import React, { useEffect, useState, useRef } from "react";
 import Image from "next/image";
 import { Lock, Check, Upload, Trash2 } from "lucide-react";
 import { Icon } from "@iconify/react";
-import { apiRequest } from "@/lib/api";
+import { useApi } from "@/hooks/useApi";
+import { apiPut } from "@/lib/apiClient";
 
 export default function ProfileForm() {
   const [isSaving, setIsSaving] = useState(false);
@@ -24,28 +25,23 @@ export default function ProfileForm() {
     bio: "Target: Hemat buat beli MacBook Air M3"
   });
 
+  const { data: profile } = useApi("/api/auth/profile");
+
   useEffect(() => {
-    const loadProfile = async () => {
-      try {
-        const data = await apiRequest("/api/auth/profile");
-        const fullName = (data?.name || "").trim();
-        const parts = fullName.split(/\s+/).filter(Boolean);
-        const firstName = parts.shift() || "";
-        const lastName = parts.join(" ");
+    if (profile) {
+      const fullName = (profile.name || "").trim();
+      const parts = fullName.split(/\s+/).filter(Boolean);
+      const firstName = parts.shift() || "";
+      const lastName = parts.join(" ");
 
-        setFormData((prev) => ({
-          ...prev,
-          firstName,
-          lastName,
-          email: data?.email || "",
-        }));
-      } catch (err) {
-        setError(err.message || "Gagal memuat profil");
-      }
-    };
-
-    loadProfile();
-  }, []);
+      setFormData((prev) => ({
+        ...prev,
+        firstName,
+        lastName,
+        email: profile.email || "",
+      }));
+    }
+  }, [profile]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -76,12 +72,9 @@ export default function ProfileForm() {
     const saveProfile = async () => {
       try {
         const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-        await apiRequest("/api/users/profile", {
-          method: "PUT",
-          body: {
-            name: fullName,
-            email: formData.email,
-          },
+        await apiPut("/api/users/profile", {
+          name: fullName,
+          email: formData.email,
         });
 
         setIsSuccess(true);

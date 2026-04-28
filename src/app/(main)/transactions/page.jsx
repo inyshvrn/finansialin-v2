@@ -1,12 +1,30 @@
 "use client";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useCallback } from "react";
 import Header from "../../components/header";
-import { apiRequest } from "@/lib/api";
+import { useApi } from "@/hooks/useApi";
+import { apiPost, apiPut, apiDelete } from "@/lib/apiClient";
+import { SkeletonTable } from "@/components/ui/Skeleton";
 import { 
   Plus, Filter, Search, ChevronDown, Edit3, Trash2, 
   X, Calendar, ArrowUpRight, ArrowDownLeft, Camera, Keyboard,
   Image as ImageIcon, AlertCircle
 } from "lucide-react";
+
+const SummaryCard = React.memo(({ label, amount, trend, color, textColor }) => {
+  const isDark = color === "bg-[#1A1A1A]";
+  return (
+    <div className={`${color} p-7 rounded-[32px] border border-[#E8E2D9] shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all`}>
+      <div className="space-y-1 relative z-10 font-sans">
+        <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#FFD600]/60" : "text-[#1A1A1A]/60"}`}>{label}</p>
+        <h3 className={`text-xl font-black tracking-tighter ${textColor} tabular-nums`}>{amount}</h3>
+        <div className="flex items-center gap-1.5 pt-2">
+          <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${isDark ? "bg-[#FFD600] text-[#1A1A1A]" : "bg-[#1A1A1A] text-[#FFD600]"}`}>{trend} ↗</span>
+        </div>
+      </div>
+    </div>
+  );
+});
+SummaryCard.displayName = "SummaryCard";
 
 export default function TransactionsPage() {
   const today = new Date().toISOString().slice(0, 10);
@@ -20,80 +38,59 @@ export default function TransactionsPage() {
   const [addMethod, setAddMethod] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState(today.slice(0, 7));
   const monthInputRef = useRef(null);
-  const [loading, setLoading] = useState(true);
-  const [apiError, setApiError] = useState("");
-  const [categories, setCategories] = useState([]);
 
   // --- CRUD STATES ---
-  const [transactions, setTransactions] = useState([]);
   const [editingTrx, setEditingTrx] = useState(null);
   const [itemToDelete, setItemToDelete] = useState(null); // State baru untuk modal delete
   const [formData, setFormData] = useState({ desc: "", type: "Income", amount: "", cat: "", date: today, idCategory: null });
+  const [actionError, setActionError] = useState("");
 
   const itemsPerPage = 25;
 
+  const { data: rawTxns, isLoading: isTxnsLoading, error: txnsError, refetch: refetchTxns } = useApi("/api/transactions");
+  const { data: rawCategories, isLoading: isCatLoading, error: catError } = useApi("/api/categories");
+
+  const loading = isTxnsLoading || isCatLoading;
+  const apiError = txnsError || catError || actionError;
+
   // --- LOGIC CRUD ---
-  const normalizeTypeToUi = (type) => (type === "income" ? "Income" : "Expenses");
-  const normalizeTypeToApi = (type) => (type === "Income" ? "income" : "expense");
+  const normalizeTypeToUi = useCallback((type) => (type === "income" ? "Income" : "Expenses"), []);
+  const normalizeTypeToApi = useCallback((type) => (type === "Income" ? "income" : "expense"), []);
 
-  const loadTransactions = async () => {
-    setLoading(true);
-    setApiError("");
+  const transactions = useMemo(() => {
+    if (!rawTxns) return [];
+    const categoryMap = new Map((rawCategories || []).map((c) => [c.idCategory, c.name]));
+    return rawTxns.map((item) => {
+      const date = item?.date ? String(item.date).slice(0, 10) : today;
+      return {
+        id: item.idTransaction,
+        idCategory: item.idCategory ?? null,
+        date,
+        desc: item.description || "(No description)",
+        cat: item.idCategory ? (categoryMap.get(item.idCategory) || "Uncategorized") : "Uncategorized",
+        type: normalizeTypeToUi(item.type),
+        amount: Number(item.amount || 0),
+      };
+    });
+  }, [rawTxns, rawCategories, today, normalizeTypeToUi]);
 
-    try {
-      const [txData, categoryData] = await Promise.all([
-        apiRequest("/api/transactions"),
-        apiRequest("/api/categories"),
-      ]);
-
-      const categoryMap = new Map((categoryData || []).map((c) => [c.idCategory, c.name]));
-      setCategories(categoryData || []);
-
-      const mapped = (txData || []).map((item) => {
-        const date = item?.date ? String(item.date).slice(0, 10) : today;
-        return {
-          id: item.idTransaction,
-          idCategory: item.idCategory ?? null,
-          date,
-          desc: item.description || "(No description)",
-          cat: item.idCategory ? (categoryMap.get(item.idCategory) || "Uncategorized") : "Uncategorized",
-          type: normalizeTypeToUi(item.type),
-          amount: Number(item.amount || 0),
-        };
-      });
-
-      setTransactions(mapped);
-    } catch (err) {
-      setApiError(err.message || "Failed to load transactions");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTransactions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const resolveCategoryId = (categoryName, type) => {
+  const resolveCategoryId = useCallback((categoryName, type) => {
     const normalized = categoryName.trim().toLowerCase();
-    if (!normalized) {
-      return null;
-    }
+    if (!normalized) return null;
 
     const apiType = normalizeTypeToApi(type);
-    const found = categories.find((cat) => {
+    const found = (rawCategories || []).find((cat) => {
       const sameName = String(cat.name || "").trim().toLowerCase() === normalized;
       const sameType = String(cat.type || "") === apiType;
       return sameName && sameType;
     });
 
     return found?.idCategory ?? null;
-  };
+  }, [rawCategories, normalizeTypeToApi]);
 
   const handleSave = async (e) => {
     e.preventDefault();
-    setApiError("");
+    setActionError("");
 
     const categoryId = formData.idCategory ?? resolveCategoryId(formData.cat, formData.type);
     const payload = {
@@ -106,52 +103,42 @@ export default function TransactionsPage() {
 
     try {
       if (editingTrx) {
-        await apiRequest(`/api/transactions/${editingTrx.id}`, {
-          method: "PUT",
-          body: payload,
-        });
+        await apiPut(`/api/transactions/${editingTrx.id}`, payload);
       } else {
-        await apiRequest("/api/transactions", {
-          method: "POST",
-          body: payload,
-        });
+        await apiPost("/api/transactions", payload);
       }
-
-      await loadTransactions();
+      refetchTxns();
       closeModal();
     } catch (err) {
-      setApiError(err.message || "Failed to save transaction");
+      setActionError(err.message || "Failed to save transaction");
     }
   };
 
-  // Fungsi delete yang dipanggil setelah konfirmasi di modal
   const confirmDelete = async () => {
     if (itemToDelete) {
       try {
-        await apiRequest(`/api/transactions/${itemToDelete.id}`, {
-          method: "DELETE",
-        });
-        await loadTransactions();
+        await apiDelete(`/api/transactions/${itemToDelete.id}`);
+        refetchTxns();
         setItemToDelete(null);
       } catch (err) {
-        setApiError(err.message || "Failed to delete transaction");
+        setActionError(err.message || "Failed to delete transaction");
       }
     }
   };
 
-  const openEditModal = (trx) => {
+  const openEditModal = useCallback((trx) => {
     setEditingTrx(trx);
     setFormData({ ...trx });
     setAddMethod('manual');
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const closeModal = () => {
+  const closeModal = useCallback(() => {
     setIsModalOpen(false);
     setEditingTrx(null);
     setAddMethod(null);
     setFormData({ desc: "", type: "Income", amount: "", cat: "", date: today, idCategory: null });
-  };
+  }, [today]);
 
   // --- LOGIC FILTER ---
   const filteredTransactions = useMemo(() => {
@@ -164,8 +151,15 @@ export default function TransactionsPage() {
   }, [searchTerm, filterType, selectedMonth, transactions]);
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  const displayedTransactions = filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
-  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const displayedTransactions = useMemo(() => {
+    return filteredTransactions.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [filteredTransactions, currentPage, itemsPerPage]);
+  
+  const pageNumbers = useMemo(() => Array.from({ length: totalPages }, (_, i) => i + 1), [totalPages]);
+
+  const totalBalance = useMemo(() => transactions.reduce((acc, curr) => curr.type === "Income" ? acc + curr.amount : acc - curr.amount, 0), [transactions]);
+  const totalIncome = useMemo(() => transactions.filter(t => t.type === "Income").reduce((acc, curr) => acc + curr.amount, 0), [transactions]);
+  const totalExpenses = useMemo(() => transactions.filter(t => t.type === "Expenses").reduce((acc, curr) => acc + curr.amount, 0), [transactions]);
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20 font-sans text-[#1A1A1A]">
@@ -181,17 +175,17 @@ export default function TransactionsPage() {
       <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-[#1A1A1A]">
         <SummaryCard 
           label="Total Balance" 
-          amount={`Rp ${(transactions.reduce((acc, curr) => curr.type === "Income" ? acc + curr.amount : acc - curr.amount, 0)).toLocaleString('id-ID')}`} 
+          amount={`Rp ${totalBalance.toLocaleString('id-ID')}`} 
           trend="+15%" color="bg-[#1A1A1A]" textColor="text-[#FFD600]" 
         />
         <SummaryCard 
           label="Total Income" 
-          amount={`Rp ${(transactions.filter(t => t.type === "Income").reduce((acc, curr) => acc + curr.amount, 0)).toLocaleString('id-ID')}`} 
+          amount={`Rp ${totalIncome.toLocaleString('id-ID')}`} 
           trend="+30%" color="bg-[#FFD600]" textColor="text-[#1A1A1A]" 
         />
         <SummaryCard 
           label="Total Expenses" 
-          amount={`Rp ${(transactions.filter(t => t.type === "Expenses").reduce((acc, curr) => acc + curr.amount, 0)).toLocaleString('id-ID')}`} 
+          amount={`Rp ${totalExpenses.toLocaleString('id-ID')}`} 
           trend="-11%" color="bg-[#1A1A1A]" textColor="text-[#FFD600]" 
         />
         <SummaryCard label="Savings Target" amount="Rp 50.000.000" trend="+5%" color="bg-[#FFD600]" textColor="text-[#1A1A1A]" />
@@ -253,43 +247,45 @@ export default function TransactionsPage() {
 
         {/* --- TABLE CONTENT --- */}
         <div className="overflow-x-auto min-h-[300px]">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="text-[10px] font-black uppercase tracking-[0.25em] text-[#A3A3A3] border-b border-[#F6F5F1]">
-                <th className="px-6 py-4">Date</th>
-                <th className="px-6 py-4">Description</th>
-                <th className="px-6 py-4">Category</th>
-                <th className="px-6 py-4">Type</th>
-                <th className="px-6 py-4">Amount</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#F6F5F1]">
-              {loading ? (
-                <tr><td colSpan="6" className="py-20 text-center text-[#A3A3A3] italic">Loading transactions...</td></tr>
-              ) : displayedTransactions.length > 0 ? displayedTransactions.map((trx) => (
-                <tr key={trx.id} className="hover:bg-[#FDFCFB] transition group">
-                  <td className="px-6 py-6 text-sm font-medium text-[#7A746E]">{trx.date}</td>
-                  <td className="px-6 py-6 text-sm font-bold">{trx.desc}</td>
-                  <td className="px-6 py-6"><span className="bg-[#F6F5F1] px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">{trx.cat}</span></td>
-                  <td className={`px-6 py-6 text-[10px] font-black uppercase tracking-widest ${trx.type === "Expenses" ? "text-red-500" : "text-green-600"}`}>{trx.type}</td>
-                  <td className={`px-6 py-6 text-sm font-black tabular-nums ${trx.type === "Expenses" ? "text-red-500" : "text-[#1A1A1A]"}`}>
-                    {trx.type === "Expenses" ? "-" : ""}Rp {trx.amount.toLocaleString('id-ID')}
-                  </td>
-                  <td className="px-6 py-6 text-right space-x-2">
-                    <button onClick={() => openEditModal(trx)} className="p-2 hover:bg-[#FFD600] rounded-xl transition text-[#A3A3A3] hover:text-[#1A1A1A]"><Edit3 size={16} /></button>
-                    <button onClick={() => setItemToDelete(trx)} className="p-2 hover:bg-red-500 rounded-xl transition text-[#A3A3A3] hover:text-white"><Trash2 size={16} /></button>
-                  </td>
+          {loading ? (
+             <SkeletonTable rows={10} cols={6} />
+          ) : (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="text-[10px] font-black uppercase tracking-[0.25em] text-[#A3A3A3] border-b border-[#F6F5F1]">
+                  <th className="px-6 py-4">Date</th>
+                  <th className="px-6 py-4">Description</th>
+                  <th className="px-6 py-4">Category</th>
+                  <th className="px-6 py-4">Type</th>
+                  <th className="px-6 py-4">Amount</th>
+                  <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
-              )) : (
-                <tr><td colSpan="6" className="py-20 text-center text-[#A3A3A3] italic">No data found...</td></tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-[#F6F5F1]">
+                {displayedTransactions.length > 0 ? displayedTransactions.map((trx) => (
+                  <tr key={trx.id} className="hover:bg-[#FDFCFB] transition group">
+                    <td className="px-6 py-6 text-sm font-medium text-[#7A746E]">{trx.date}</td>
+                    <td className="px-6 py-6 text-sm font-bold">{trx.desc}</td>
+                    <td className="px-6 py-6"><span className="bg-[#F6F5F1] px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider text-[#A3A3A3]">{trx.cat}</span></td>
+                    <td className={`px-6 py-6 text-[10px] font-black uppercase tracking-widest ${trx.type === "Expenses" ? "text-red-500" : "text-green-600"}`}>{trx.type}</td>
+                    <td className={`px-6 py-6 text-sm font-black tabular-nums ${trx.type === "Expenses" ? "text-red-500" : "text-[#1A1A1A]"}`}>
+                      {trx.type === "Expenses" ? "-" : ""}Rp {trx.amount.toLocaleString('id-ID')}
+                    </td>
+                    <td className="px-6 py-6 text-right space-x-2">
+                      <button onClick={() => openEditModal(trx)} className="p-2 hover:bg-[#FFD600] rounded-xl transition text-[#A3A3A3] hover:text-[#1A1A1A]"><Edit3 size={16} /></button>
+                      <button onClick={() => setItemToDelete(trx)} className="p-2 hover:bg-red-500 rounded-xl transition text-[#A3A3A3] hover:text-white"><Trash2 size={16} /></button>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan="6" className="py-20 text-center text-[#A3A3A3] italic">No data found...</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
         {/* --- PAGINATION --- */}
-        {totalPages > 1 && (
+        {!loading && totalPages > 1 && (
           <div className="flex justify-between items-center pt-8 border-t border-[#F6F5F1]">
             <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">{filteredTransactions.length} Results</p>
             <div className="flex gap-2">
@@ -350,7 +346,7 @@ export default function TransactionsPage() {
                       setFormData({...formData, cat: inputVal, idCategory: matchId});
                     }} type="text" list="transaction-category-options" className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none" />
                     <datalist id="transaction-category-options">
-                      {categories
+                      {(rawCategories || [])
                         .filter((cat) => String(cat.type || "") === normalizeTypeToApi(formData.type))
                         .map((cat) => (
                           <option key={cat.idCategory} value={cat.name} />
@@ -371,11 +367,10 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      {/* --- MODAL KONFIRMASI DELETE (CUSTOM LUXURY) --- */}
+      {/* --- MODAL KONFIRMASI DELETE --- */}
       {itemToDelete && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-6 animate-in fade-in duration-300">
           <div className="bg-white w-full max-w-sm rounded-[40px] p-10 shadow-2xl relative overflow-hidden text-center animate-in zoom-in-95 duration-300">
-            {/* Dekorasi Aksen Merah */}
             <div className="absolute top-0 left-0 w-full h-2 bg-red-500/80"></div>
             
             <div className="flex flex-col items-center gap-5">
@@ -408,21 +403,6 @@ export default function TransactionsPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function SummaryCard({ label, amount, trend, color, textColor }) {
-  const isDark = color === "bg-[#1A1A1A]";
-  return (
-    <div className={`${color} p-7 rounded-[32px] border border-[#E8E2D9] shadow-sm relative overflow-hidden group hover:scale-[1.02] transition-all`}>
-      <div className="space-y-1 relative z-10 font-sans">
-        <p className={`text-[10px] font-black uppercase tracking-widest ${isDark ? "text-[#FFD600]/60" : "text-[#1A1A1A]/60"}`}>{label}</p>
-        <h3 className={`text-xl font-black tracking-tighter ${textColor} tabular-nums`}>{amount}</h3>
-        <div className="flex items-center gap-1.5 pt-2">
-          <span className={`text-[9px] font-black px-2 py-1 rounded-lg ${isDark ? "bg-[#FFD600] text-[#1A1A1A]" : "bg-[#1A1A1A] text-[#FFD600]"}`}>{trend} ↗</span>
-        </div>
-      </div>
     </div>
   );
 }

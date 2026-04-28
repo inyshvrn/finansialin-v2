@@ -6,19 +6,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import "../style/login.css";
 
+import { apiPost } from "@/lib/apiClient";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
-async function parseApiResponse(response) {
-  const raw = await response.text();
-
-  try {
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {
-      message: `Unexpected server response (${response.status}).`,
-    };
-  }
-}
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -58,39 +49,15 @@ function Login() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      console.log("=== RESPONSE LOGIN ===");
-      console.log("Response OK?:", response.ok);
-      console.log("Status:", response.status);
-      console.log("Full data:", data);
-
-      if (!response.ok) {
-        setError(data.message || "Email atau password salah");
-        return;
-      }
+      const data = await apiPost('/api/auth/login', { email, password });
 
       const accessToken = data.accessToken;
       const refreshToken = data.refreshToken;
 
-      console.log("Access Token:", accessToken);
-      console.log("Refresh Token:", refreshToken);
-
       if (!accessToken) {
         setError("Invalid token from server");
-        console.error("❌ No accessToken in response!");
         return;
       }
-
-      console.log("✅ Menyimpan token...");
 
       localStorage.setItem("access_token", accessToken);
 
@@ -102,18 +69,12 @@ function Login() {
         localStorage.setItem("user", JSON.stringify(data.user));
       }
 
-      const saved = localStorage.getItem("access_token");
-      console.log("✅ Token tersimpan:", saved);
-
-      console.log("🚀 Redirect ke dashboard...");
-
       setTimeout(() => {
         router.push("/dashboard");
       }, 1000);
 
     } catch (err) {
-      setError("Connection error: " + err.message);
-      console.error("❌ Login error:", err);
+      setError(err.message || "Email atau password salah");
     } finally {
       setLoading(false);
     }
@@ -127,21 +88,7 @@ function Login() {
     setForgotLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/auth/forgot-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({ email: forgotEmail }),
-      });
-
-      const data = await parseApiResponse(response);
-
-      if (!response.ok) {
-        setForgotError(data.message || "Failed to send reset email");
-        return;
-      }
+      const data = await apiPost('/api/auth/forgot-password', { email: forgotEmail });
 
       const token = data?.reset?.token;
       if (token) {
@@ -160,8 +107,7 @@ function Login() {
         }, 2000);
       }
     } catch (err) {
-      setForgotError("Connection error: " + err.message);
-      console.error("❌ Forgot password error:", err);
+      setForgotError(err.message || "Failed to send reset email");
     } finally {
       setForgotLoading(false);
     }

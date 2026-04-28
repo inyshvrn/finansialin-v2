@@ -8,11 +8,15 @@ const montserrat = Montserrat({
   variable: "--font-montserrat",
 });
 
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
 export default function RootLayout({ children }) {
   return (
     <html lang="id">
       <body className={`${montserrat.variable} font-sans antialiased bg-[#FBFBFB] text-[#1A1A1A]`}>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   );

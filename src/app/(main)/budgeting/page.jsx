@@ -1,7 +1,8 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Header from "../../components/header";
-import { apiRequest } from "@/lib/api";
+import { apiGet, apiPost, apiPut } from "@/lib/apiClient";
+import { SkeletonCard } from "@/components/ui/Skeleton";
 import { 
   Plus, 
   Target, 
@@ -12,6 +13,71 @@ import {
   PencilLine,
   SearchX
 } from "lucide-react";
+
+const CategoryCard = React.memo(({ label, spent, limit, percent, daysLeft, isWarning, onAdjust }) => {
+  const progressWidth = Math.min(percent, 100);
+
+  return (
+    <div className="bg-white border border-[#E8E2D9] p-7 rounded-[32px] shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col h-full">
+      <div className="flex justify-between items-start z-10 gap-3 mb-6">
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className={`w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-[20px] ${isWarning ? "bg-red-50 text-red-500" : "bg-[#F6F5F1] text-[#1A1A1A]"}`}>
+            <Target size={22} strokeWidth={2.5} />
+          </div>
+          <div className="flex flex-col justify-center flex-1 min-w-0">
+            <h3 className="font-black text-base text-[#1A1A1A] leading-none truncate block" title={label}>{label}</h3>
+            <p className="text-[9px] text-[#A3A3A3] font-black uppercase tracking-widest mt-1.5 truncate">Monthly Target</p>
+          </div>
+        </div>
+        
+        <div className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm border ${isWarning ? "bg-red-50 text-red-600 border-red-100" : "bg-[#FDFCFB] text-green-600 border-[#E8E2D9]"}`}>
+          {isWarning ? <AlertTriangle size={12} strokeWidth={2.5} /> : <CheckCircle2 size={12} strokeWidth={2.5} />}
+          {isWarning ? "Waspada" : "Aman"}
+        </div>
+      </div>
+
+      <div className="space-y-4 z-10 flex-1 flex flex-col justify-center">
+        <div className="flex justify-between items-end gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest mb-1">Terpakai</p>
+            <p className="text-lg font-black text-[#1A1A1A] tracking-tighter truncate">
+              {spent} <span className="text-[11px] text-[#A3A3A3] font-bold tracking-normal">/ {limit}</span>
+            </p>
+          </div>
+          <span className={`flex-shrink-0 text-2xl font-black block leading-none tracking-tighter ${isWarning ? "text-red-500" : "text-[#1A1A1A]"}`}>
+            {percent}%
+          </span>
+        </div>
+
+        <div className="w-full h-2.5 bg-[#F6F5F1] rounded-full overflow-hidden border border-[#E8E2D9]/50">
+          <div 
+            className={`h-full rounded-full transition-all duration-1000 ease-out ${isWarning ? "bg-red-500" : "bg-[#1A1A1A]"}`} 
+            style={{ width: `${progressWidth}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-between items-center z-10 pt-5 mt-6 border-t border-[#F6F5F1] mt-auto">
+        <div className="flex items-center -space-x-2 flex-shrink-0">
+          <div className="w-9 h-9 rounded-full border-[2.5px] border-white bg-[#FFD600] text-[10px] flex items-center justify-center font-black shadow-sm z-10 relative">
+            {daysLeft}d
+          </div>
+          <div className="h-9 pr-3 pl-3 rounded-full border-[2.5px] border-white bg-[#1A1A1A] text-white text-[9px] flex items-center justify-center font-black uppercase tracking-tighter shadow-sm">
+            Left
+          </div>
+        </div>
+
+        <button
+          onClick={onAdjust}
+          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-4 h-9 bg-white border border-[#E8E2D9] text-[#1A1A1A] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#F6F5F1] hover:border-[#A3A3A3] active:scale-95 transition-all duration-300 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0"
+        >
+          <PencilLine size={14} /> Adjust
+        </button>
+      </div>
+    </div>
+  );
+});
+CategoryCard.displayName = "CategoryCard";
 
 export default function BudgetingPage() {
   const [filter, setFilter] = useState("Active");
@@ -26,45 +92,37 @@ export default function BudgetingPage() {
   const [selectedBudget, setSelectedBudget] = useState(null);
   const [adjustAmount, setAdjustAmount] = useState("");
 
-  // State untuk Modal Add Budget (Baru)
+  // State untuk Modal Add Budget
   const [showAddBudget, setShowAddBudget] = useState(false);
   const [newCategory, setNewCategory] = useState("");
   const [newLimit, setNewLimit] = useState("");
 
-  const formatCurrency = (value) => `Rp ${Number(value || 0).toLocaleString("id-ID")}`;
+  const formatCurrency = useCallback((value) => `Rp ${Number(value || 0).toLocaleString("id-ID")}`, []);
 
-  const daysLeftUntil = (dateStr) => {
-    if (!dateStr) {
-      return 0;
-    }
-
+  const daysLeftUntil = useCallback((dateStr) => {
+    if (!dateStr) return 0;
     const target = new Date(String(dateStr).slice(0, 10));
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     target.setHours(0, 0, 0, 0);
-
     const diff = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
     return Math.max(0, diff);
-  };
+  }, []);
 
-  const computeStatus = (percent) => {
-    if (percent > 100) {
-      return "Overlimit";
-    }
-    if (percent === 100) {
-      return "Completed";
-    }
+  const computeStatus = useCallback((percent) => {
+    if (percent > 100) return "Overlimit";
+    if (percent === 100) return "Completed";
     return "Active";
-  };
+  }, []);
 
-  const loadBudgets = async () => {
+  const loadBudgets = useCallback(async () => {
     setLoading(true);
     setApiError("");
 
     try {
       const [budgets, categoryData] = await Promise.all([
-        apiRequest("/api/budgets"),
-        apiRequest("/api/categories"),
+        apiGet("/api/budgets"),
+        apiGet("/api/categories"),
       ]);
 
       const categoryMap = new Map((categoryData || []).map((cat) => [cat.idCategory, cat.name]));
@@ -72,7 +130,7 @@ export default function BudgetingPage() {
 
       const usageData = await Promise.all(
         (budgets || []).map(async (budget) => {
-          const usage = await apiRequest(`/api/budgets/${budget.idBudget}/usage`);
+          const usage = await apiGet(`/api/budgets/${budget.idBudget}/usage`);
           return { idBudget: budget.idBudget, usage };
         })
       );
@@ -105,37 +163,32 @@ export default function BudgetingPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [formatCurrency, daysLeftUntil, computeStatus]);
 
   useEffect(() => {
     loadBudgets();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadBudgets]);
 
-  const filteredData = budgetData.filter((item) => {
-    const matchesSearch = item.label.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter = filter === "All" ? true : item.status === filter;
-    return matchesFilter && matchesSearch;
-  });
+  const filteredData = useMemo(() => {
+    return budgetData.filter((item) => {
+      const matchesSearch = item.label.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesFilter = filter === "All" ? true : item.status === filter;
+      return matchesFilter && matchesSearch;
+    });
+  }, [budgetData, searchQuery, filter]);
 
-  // Action Handlers
-  const openAdjust = (cat) => {
+  const openAdjust = useCallback((cat) => {
     setSelectedBudget(cat);
     setAdjustAmount("");
     setShowAdjust(true);
-  };
+  }, []);
 
   const handleSaveAdjust = async () => {
-    if (!selectedBudget || !adjustAmount) {
-      return;
-    }
+    if (!selectedBudget || !adjustAmount) return;
 
     try {
-      await apiRequest(`/api/budgets/${selectedBudget.idBudget}`, {
-        method: "PUT",
-        body: {
-          amount: Number(adjustAmount),
-        },
+      await apiPut(`/api/budgets/${selectedBudget.idBudget}`, {
+        amount: Number(adjustAmount),
       });
 
       await loadBudgets();
@@ -161,15 +214,12 @@ export default function BudgetingPage() {
       const periodStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
       const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().slice(0, 10);
 
-      await apiRequest("/api/budgets", {
-        method: "POST",
-        body: {
-          idCategory: category.idCategory,
-          period: "monthly",
-          periodStart,
-          periodEnd,
-          amount: Number(newLimit),
-        },
+      await apiPost("/api/budgets", {
+        idCategory: category.idCategory,
+        period: "monthly",
+        periodStart,
+        periodEnd,
+        amount: Number(newLimit),
       });
 
       await loadBudgets();
@@ -211,8 +261,6 @@ export default function BudgetingPage() {
 
       {/* --- CONTROL BAR --- */}
       <section className="flex flex-col xl:flex-row justify-between items-center gap-4">
-        
-        {/* Filter Tabs Container */}
         <div className="flex items-center bg-white p-1.5 rounded-2xl border border-[#E8E2D9] h-[52px] w-full xl:w-auto overflow-x-auto no-scrollbar shadow-sm">
           {["All", "Active", "Completed", "Overlimit"].map((t) => (
             <button 
@@ -229,7 +277,6 @@ export default function BudgetingPage() {
           ))}
         </div>
 
-        {/* Search & Add Button Container */}
         <div className="flex items-center gap-3 w-full xl:w-auto h-[52px]">
           <div className="relative flex-1 md:w-80 h-full group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A3A3A3] group-focus-within:text-[#FFD600] transition-colors" size={18} />
@@ -242,7 +289,6 @@ export default function BudgetingPage() {
             />
           </div>
           
-          {/* Tombol Add Budget - Ditambahkan onClick */}
           <button 
             onClick={() => setShowAddBudget(true)}
             className="h-full w-[52px] flex-shrink-0 flex items-center justify-center bg-[#1A1A1A] text-[#FFD600] rounded-2xl shadow-lg hover:bg-black active:scale-95 transition-all"
@@ -255,9 +301,11 @@ export default function BudgetingPage() {
       {/* --- BUDGET GRID --- */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-full py-24 flex flex-col items-center justify-center border-2 border-dashed border-[#E8E2D9] rounded-[32px] bg-white">
-            <p className="text-[#A3A3A3] text-sm font-bold">Loading budgets...</p>
-          </div>
+          <>
+            <SkeletonCard />
+            <SkeletonCard />
+            <SkeletonCard />
+          </>
         ) : filteredData.length > 0 ? (
           filteredData.map((budget) => <CategoryCard key={budget.id} {...budget} onAdjust={() => openAdjust(budget)} />)
         ) : (
@@ -294,7 +342,6 @@ export default function BudgetingPage() {
             </div>
 
             <div className="space-y-5">
-              {/* Input Nama Kategori */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3] ml-1">Nama Kategori</label>
                 <input 
@@ -314,7 +361,6 @@ export default function BudgetingPage() {
                 </datalist>
               </div>
 
-              {/* Input Limit Nominal */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3] ml-1">Target Bulanan (Rp)</label>
                 <div className="relative">
@@ -403,71 +449,6 @@ export default function BudgetingPage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// --- SUB-COMPONENT: CATEGORY CARD ---
-function CategoryCard({ label, spent, limit, percent, daysLeft, isWarning, onAdjust }) {
-  const progressWidth = Math.min(percent, 100);
-
-  return (
-    <div className="bg-white border border-[#E8E2D9] p-7 rounded-[32px] shadow-sm hover:shadow-lg transition-all duration-300 group flex flex-col h-full">
-      <div className="flex justify-between items-start z-10 gap-3 mb-6">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div className={`w-12 h-12 flex-shrink-0 flex items-center justify-center rounded-[20px] ${isWarning ? "bg-red-50 text-red-500" : "bg-[#F6F5F1] text-[#1A1A1A]"}`}>
-            <Target size={22} strokeWidth={2.5} />
-          </div>
-          <div className="flex flex-col justify-center flex-1 min-w-0">
-            <h3 className="font-black text-base text-[#1A1A1A] leading-none truncate block" title={label}>{label}</h3>
-            <p className="text-[9px] text-[#A3A3A3] font-black uppercase tracking-widest mt-1.5 truncate">Monthly Target</p>
-          </div>
-        </div>
-        
-        <div className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest shadow-sm border ${isWarning ? "bg-red-50 text-red-600 border-red-100" : "bg-[#FDFCFB] text-green-600 border-[#E8E2D9]"}`}>
-          {isWarning ? <AlertTriangle size={12} strokeWidth={2.5} /> : <CheckCircle2 size={12} strokeWidth={2.5} />}
-          {isWarning ? "Waspada" : "Aman"}
-        </div>
-      </div>
-
-      <div className="space-y-4 z-10 flex-1 flex flex-col justify-center">
-        <div className="flex justify-between items-end gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest mb-1">Terpakai</p>
-            <p className="text-lg font-black text-[#1A1A1A] tracking-tighter truncate">
-              {spent} <span className="text-[11px] text-[#A3A3A3] font-bold tracking-normal">/ {limit}</span>
-            </p>
-          </div>
-          <span className={`flex-shrink-0 text-2xl font-black block leading-none tracking-tighter ${isWarning ? "text-red-500" : "text-[#1A1A1A]"}`}>
-            {percent}%
-          </span>
-        </div>
-
-        <div className="w-full h-2.5 bg-[#F6F5F1] rounded-full overflow-hidden border border-[#E8E2D9]/50">
-          <div 
-            className={`h-full rounded-full transition-all duration-1000 ease-out ${isWarning ? "bg-red-500" : "bg-[#1A1A1A]"}`} 
-            style={{ width: `${progressWidth}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-between items-center z-10 pt-5 mt-6 border-t border-[#F6F5F1] mt-auto">
-        <div className="flex items-center -space-x-2 flex-shrink-0">
-          <div className="w-9 h-9 rounded-full border-[2.5px] border-white bg-[#FFD600] text-[10px] flex items-center justify-center font-black shadow-sm z-10 relative">
-            {daysLeft}d
-          </div>
-          <div className="h-9 pr-3 pl-3 rounded-full border-[2.5px] border-white bg-[#1A1A1A] text-white text-[9px] flex items-center justify-center font-black uppercase tracking-tighter shadow-sm">
-            Left
-          </div>
-        </div>
-
-        <button
-          onClick={onAdjust}
-          className="flex-shrink-0 flex items-center justify-center gap-1.5 px-4 h-9 bg-white border border-[#E8E2D9] text-[#1A1A1A] rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-[#F6F5F1] hover:border-[#A3A3A3] active:scale-95 transition-all duration-300 opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0"
-        >
-          <PencilLine size={14} /> Adjust
-        </button>
-      </div>
     </div>
   );
 }
