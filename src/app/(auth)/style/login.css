@@ -4,9 +4,40 @@
 }
 
 .password-wrapper input {
-  margin-bottom: 6px;
+  position: relative;
+  width: 100%;
+  margin-bottom: 12px;
 }
 
+.password-wrapper input {
+  margin-bottom: 0 !important; 
+  padding-right: 48px !important;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #8A8A8A; /* Warna abu-abu sesuai dengan moodboard brand Anda */
+  transition: color 0.2s ease-in-out;
+}
+
+.toggle-password:hover {
+  color: #000000;
+}
+
+.icon-eye {
+  width: 20px;
+  height: 20px;
+}
 
 /* ===== KEYFRAME ANIMATIONS LOGIN ===== */
 @keyframes loginSlideInLeft {
