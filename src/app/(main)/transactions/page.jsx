@@ -5,6 +5,7 @@ import { useApi } from "@/hooks/useApi";
 import { apiPost, apiPut, apiDelete } from "@/lib/apiClient";
 import { apiRequest } from "@/lib/api";
 import { SkeletonTable } from "@/components/ui/Skeleton";
+import Select from "@/components/ui/Select";
 import {
   Plus,
   Filter,
@@ -77,6 +78,7 @@ export default function TransactionsPage() {
     cat: "",
     date: today,
     idCategory: null,
+    idFundingSource: "",
   });
   const [actionError, setActionError] = useState("");
   const [selectedReceiptFile, setSelectedReceiptFile] = useState(null);
@@ -109,9 +111,14 @@ export default function TransactionsPage() {
     isLoading: isCatLoading,
     error: catError,
   } = useApi("/api/categories");
+  const {
+    data: fundingSources,
+    isLoading: isFundingLoading,
+    error: fundingError,
+  } = useApi("/api/funding-sources");
 
-  const loading = isTxnsLoading || isCatLoading;
-  const apiError = txnsError || catError || actionError;
+  const loading = isTxnsLoading || isCatLoading || isFundingLoading;
+  const apiError = txnsError || catError || fundingError || actionError;
 
   // --- LOGIC CRUD ---
   const normalizeTypeToUi = useCallback(
@@ -179,6 +186,9 @@ export default function TransactionsPage() {
       amount: Number(formData.amount || 0),
       date: formData.date,
       ...(categoryId ? { idCategory: categoryId } : {}),
+      ...(formData.idFundingSource && formData.type === "Income"
+        ? { idFundingSource: formData.idFundingSource }
+        : {}),
     };
 
     try {
@@ -232,6 +242,7 @@ export default function TransactionsPage() {
       cat: "",
       date: today,
       idCategory: null,
+      idFundingSource: "",
     });
     resetScanState();
   }, [today, resetScanState]);
@@ -502,6 +513,7 @@ export default function TransactionsPage() {
                   cat: "",
                   date: today,
                   idCategory: null,
+                  idFundingSource: "",
                 });
                 resetScanState();
               }}
@@ -729,8 +741,8 @@ export default function TransactionsPage() {
                 <h2 className="text-2xl font-black mb-6 tracking-tighter">
                   {editingTrx ? "Edit" : "New"} Transaction
                 </h2>
-                <form onSubmit={handleSave} className="grid grid-cols-2 gap-4">
-                  <div className="col-span-2 space-y-1.5">
+                <form onSubmit={handleSave} className="space-y-4">
+                  <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
                       Description
                     </label>
@@ -741,74 +753,88 @@ export default function TransactionsPage() {
                         setFormData({ ...formData, desc: e.target.value })
                       }
                       type="text"
-                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#FFD600]"
+                      placeholder="Deskripsi transaksi..."
+                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#FFD600] border border-[#E8E2D9]"
                     />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
-                      Type
-                    </label>
-                    <select
-                      value={formData.type}
-                      onChange={(e) =>
-                        setFormData({ ...formData, type: e.target.value })
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
+                        Type
+                      </label>
+                      <select
+                        value={formData.type}
+                        onChange={(e) =>
+                          setFormData({ ...formData, type: e.target.value })
+                        }
+                        className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-4 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#FFD600] border border-[#E8E2D9] transition-all"
+                      >
+                        <option value="Income">Income</option>
+                        <option value="Expenses">Expenses</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
+                        Amount (Rp)
+                      </label>
+                      <input
+                        required
+                        value={formData.amount}
+                        onChange={(e) =>
+                          setFormData({ ...formData, amount: e.target.value })
+                        }
+                        type="number"
+                        placeholder="0"
+                        className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#FFD600] border border-[#E8E2D9]"
+                      />
+                    </div>
+                  </div>
+
+                  <Select
+                    label="Category"
+                    required
+                    value={formData.cat}
+                    onChange={(val) => {
+                      const matchId = resolveCategoryId(val, formData.type);
+                      setFormData({
+                        ...formData,
+                        cat: val,
+                        idCategory: matchId,
+                      });
+                    }}
+                    searchable
+                    options={(rawCategories || [])
+                      .filter(
+                        (cat) =>
+                          String(cat.type || "") ===
+                          normalizeTypeToApi(formData.type),
+                      )
+                      .map((cat) => ({
+                        value: cat.name,
+                        label: cat.name,
+                      }))}
+                    placeholder="Select category..."
+                  />
+
+                  {formData.type === "Income" && (
+                    <Select
+                      label="Funding Source (Wallet)"
+                      value={formData.idFundingSource}
+                      onChange={(val) =>
+                        setFormData({ ...formData, idFundingSource: val })
                       }
-                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-4 text-sm font-semibold outline-none"
-                    >
-                      <option value="Income">Income</option>
-                      <option value="Expenses">Expenses</option>
-                    </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
-                      Amount (Rp)
-                    </label>
-                    <input
-                      required
-                      value={formData.amount}
-                      onChange={(e) =>
-                        setFormData({ ...formData, amount: e.target.value })
-                      }
-                      type="number"
-                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none"
+                      searchable
+                      options={(fundingSources || []).map((source) => ({
+                        value: source.idFundingSource.toString(),
+                        label: source.name,
+                        badge: `Rp ${Number(source.availableBalance || 0).toLocaleString("id-ID")}`,
+                      }))}
+                      placeholder="Select wallet..."
                     />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
-                      Category
-                    </label>
-                    <input
-                      required
-                      value={formData.cat}
-                      onChange={(e) => {
-                        const inputVal = e.target.value;
-                        const matchId = resolveCategoryId(
-                          inputVal,
-                          formData.type,
-                        );
-                        setFormData({
-                          ...formData,
-                          cat: inputVal,
-                          idCategory: matchId,
-                        });
-                      }}
-                      type="text"
-                      list="transaction-category-options"
-                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none"
-                    />
-                    <datalist id="transaction-category-options">
-                      {(rawCategories || [])
-                        .filter(
-                          (cat) =>
-                            String(cat.type || "") ===
-                            normalizeTypeToApi(formData.type),
-                        )
-                        .map((cat) => (
-                          <option key={cat.idCategory} value={cat.name} />
-                        ))}
-                    </datalist>
-                  </div>
-                  <div className="space-y-1.5">
+                  )}
+
+                  <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-[#A3A3A3]">
                       Date
                     </label>
@@ -819,14 +845,15 @@ export default function TransactionsPage() {
                         setFormData({ ...formData, date: e.target.value })
                       }
                       type="date"
-                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none"
+                      className="w-full h-12 bg-[#F6F5F1] rounded-2xl px-5 text-sm font-semibold outline-none focus:ring-2 focus:ring-[#FFD600] border border-[#E8E2D9]"
                     />
                   </div>
+
                   <button
                     type="submit"
-                    className="col-span-2 py-4 bg-[#1A1A1A] text-[#FFD600] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl mt-4 hover:bg-black transition-all"
+                    className="w-full py-4 bg-[#1A1A1A] text-[#FFD600] font-black uppercase tracking-[0.2em] rounded-2xl shadow-xl mt-6 hover:bg-black transition-all"
                   >
-                    {editingTrx ? "Update" : "New"} Transaction
+                    {editingTrx ? "Update" : "Create"} Transaction
                   </button>
                 </form>
               </div>
